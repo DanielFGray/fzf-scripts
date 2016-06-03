@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+
+declare esc=$(printf '\033')
+declare c_reset="${esc}[0m"
+declare c_red="${esc}[31m"
+
+isRunning() {
+  pgrep "$1" &> /dev/null
+}
+
+err() {
+  echo -e "${c_red}$1${c_reset}" >&2
+}
+
+die() {
+  [[ -n "$1" ]] && err "$1"
+  exit 1
+}
+
+has() {
+  local verbose=false
+  if [[ $1 == '-v' ]]; then
+    verbose=true
+    shift
+  fi
+  for c in "$@"; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      [[ "$verbose" == true ]] && err "$c not found"
+      return 1
+    fi
+  done
+}
+
+fzf() {
+  command fzf -e --reverse --cycle +s --inline-info "$@"
+}
+
+filterAll() {
+  mpc search -f '[[[%artist% / ][[(%date%) ]%album% / ][%track%] [%title%]]|%file%] \t%file%' filename '' |
+    fzf -m --with-nth='..-2' --delimiter='\t' |
+    cut -f2
+}
+
+filterByArtist() {
+  local artist
+  artist=$(mpc list artist | sort -h | fzf)
+  [[ -z "$artist" ]] && die
+  filterByAlbum "$artist"
+}
+
+filterByAlbum() {
+  local album artist
+  [[ -z "$1" ]] && die
+  artist="$1"
+  album=$(mpc search -f '[(%date%)]\t%album%' artist "${artist}" |
+    sort -u |
+    fzf --prompt="$artist > " |
+    cut -f2 )
+  if [[ -z "$album" ]]; then
+    filterByArtist
+    return 0
+  fi
+  filterBySong "$artist" "$album"
+}
+
+filterBySong() {
+  local album artist
+  [[ -z "$1" || -z "$2" ]] && die
+  artist="$1"
+  album="$2"
+  songs=$(mpc search -f '[[[%track% - ][%title%]]|%file%] \t%file%' artist "${artist}" album "${album}" |
+    fzf --prompt="$artist - $album > " -m --with-nth='..-2' --delimiter='\t' |
+    cut -f2)
+  if [[ -z "$songs" ]]; then
+    filterByAlbum "$artist"
+    return 0
+  fi
+  echo "$songs"
+}
+
+filterByPlayist() {
+  mpc playlist -f '[%artist% / ][[(%date%) ]%album% / ][%title%|%file%] \t%file%' |
+    fzf --prompt='playlist> ' -m --with-nth='..-2' --delimiter='\t' |
+    cut -f2
+}
+
+has -v fzf mpc || die
+isRunning mpd || die 'mpd not running'
+
+declare filter='filterAll'
+while true; do
+  case "$1" in
+    -a|--artist)   filter='filterByArtist'  ; shift ;;
+    -p|--playlist) filter='filterByPlayist' ; shift ;;
+    *) break
+  esac
+done
+
+mapfile -t songs < <("$filter")
+(( ${#songs[@]} > 0 )) || die
+printf '%s\n' "${songs[@]}" | mpc -q add
+index=$(mpc playlist | wc -l)
+if (( ${#songs[@]} > 1 )); then
+  index=$(( index - ${#songs[@]} + 1))
+fi
+mpc play "$index"

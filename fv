@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+
+declare esc=$(printf '\033')
+declare c_reset="${esc}[0m"
+declare c_red="${esc}[31m"
+
+err() {
+  echo -e "${c_red}$1${c_reset}" >&2
+}
+
+die() {
+  [[ -n "$1" ]] && err "$1"
+  exit 1
+}
+
+has() {
+  local verbose=false
+  if [[ $1 == '-v' ]]; then
+    verbose=true
+    shift
+  fi
+  for c in "$@"; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      [[ "$verbose" == true ]] && err "$c not found"
+      return 1
+    fi
+  done
+}
+
+usage() {
+  more <<'HELP'
+fv [OPTIONS] [SEARCH]
+fuzzy file filtering and command executing
+
+-c    command to execute [defaults to vim]
+-a    search all dirs and hidden files (still quirky)
+-d    detach from terminal via nohup
+HELP
+}
+
+setCmd() {
+   if has "$1"; then
+    cmd="$1"
+  else
+    die "$1 is not a valid command"
+  fi
+}
+
+declare cmd='vim'
+declare cmdopts=()
+declare searchstr=''
+declare searchcmd=''
+declare searchopts=()
+declare allfiles=0
+
+while getopts "hadlc:" opt; do
+  case "$opt" in
+    h) usage; exit 0        ;;
+    a) allfiles=1           ;;
+    c) setCmd "$OPTARG"     ;;
+    d) unset detach         ;;
+    l) searchopts+=( '-l' ) ;;
+  esac
+done
+shift "$((OPTIND-1))"
+
+has -v 'fzf' || die
+
+for c in 'ag' 'ack' 'grep'; do
+  if has "$c"; then
+    searchcmd="$c"
+    break
+  fi
+done
+
+if [[ $searchcmd  == 'grep' ]]; then
+  err 'grep is slow, you should strongly consider installing ag or ack'
+  sleep .5
+fi
+
+if [[ -n "$1" ]]; then
+  if [[ -d "$1" ]]; then
+    searchopts+=( "$1" )
+  else
+    searchstr="$1"
+  fi
+  shift
+fi
+
+case "$searchcmd" in
+  'ag')
+    searchopts+=( '--color' )
+    if [[ "$allfiles" == 1 ]]; then
+      searchopts+=( '-u' '--hidden' )
+    fi
+    if [[ "$searchstr" == '' ]]; then
+      searchopts+=( '-l' )
+    fi
+    ;;
+  'ack')
+    if [[ "$searchstr" == '' ]]; then
+      if [[ "$allfiles" == 0 ]]; then
+        searchopts+=( '-g' '^[^\.]' )
+      else
+        searchopts+=( '-f' )
+      fi
+    else
+      searchopts+=( '-l' )
+    #   searchopts+=( '--match' )
+    fi
+    ;;
+  'grep')
+    searchopts+=( '-r' '-I' )
+    if [[ "$allfiles" == 0 ]]; then
+      searchopts+=( '--exclude-dir=bower_components' )
+      searchopts+=( '--exclude-dir=node_modules' )
+      searchopts+=( '--exclude-dir=jspm_packages' )
+      searchopts+=( '--exclude-dir=.cvs' )
+      searchopts+=( '--exclude-dir=.git' )
+      searchopts+=( '--exclude-dir=.hg' )
+      searchopts+=( '--exclude-dir=.svn' )
+    fi
+    if [[ "$searchstr" == '' ]]; then
+      searchopts+=( '' )
+    fi
+    ;;
+esac
+
+if [[ "$searchstr" != '' ]]; then
+  searchopts+=( "$searchstr" )
+fi
+
+choices=$($searchcmd "${searchopts[@]}" 2> /dev/null |
+  fzf --ansi --cycle --multi) || exit 1
+
+if [[ "$searchstr" != '' ]]; then
+  if [[ $searchcmd == 'ag' ]]; then
+    choices=$(cut -d: -f1 <<< "$choices")
+  fi
+fi
+
+mapfile -t choices <<< "$choices"
+
+$cmd ${cmdopts[*]} "${choices[@]}"

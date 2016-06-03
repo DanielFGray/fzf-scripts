@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+
+declare esc=$(printf '\033')
+declare c_reset="${esc}[0m"
+declare c_red="${esc}[31m"
+declare c_green="${esc}[32m"
+declare c_blue="${esc}[34m"
+
+err() {
+  echo -e "${c_red}$1${c_reset}" >&2
+}
+
+die() {
+  exit 1
+}
+
+has() {
+  local verbose=false
+  if [[ $1 == '-v' ]]; then
+    verbose=true
+    shift
+  fi
+  for c in "$@"; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      [[ "$verbose" == true ]] && err "$c not found"
+      return 1
+    fi
+  done
+}
+
+select-from() {
+  local cmd='command -v'
+  for a in "$@"; do
+    case "$a" in
+      -c)
+        cmd="$2"
+        shift 2
+        ;;
+    esac
+  done
+  for c in "$@"; do
+    if $cmd "${c%% *}" &> /dev/null; then
+      echo "$c"
+      return 0
+    fi
+  done
+  return 1
+}
+
+has -v fzf || die
+
+declare search
+declare out
+declare -a pkgs
+
+fzf() {
+  command fzf -e +s --multi --cycle --ansi --no-hscroll --inline-info --reverse "$@"
+}
+
+if [[ -f /etc/debian_version ]]; then
+  out=$(fzf --query="$*" < <( \
+      apt-cache search '' |
+      sort |
+      sed -u -r "s|^([^ ]+)|${c_green}\1${c_reset}|" ) )
+  mapfile -t pkgs < <( awk '{print $1}' <<< "$out" )
+  (( ${#pkgs} > 0 )) || exit
+  sudo $(select-from 'apt' 'apt-get') install "${pkgs[@]}"
+elif [[ -f /etc/arch-release ]]; then
+  search='pacman'
+  (( $# > 0)) && search=$(select-from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
+  out=$(fzf < <( $search -Ss "$@" |
+      awk '{
+        getline descr;
+        sub(/ */,"", descr);
+        repo = "[" blue gensub(/\/.*/, "", 1) reset "]";
+        name = green gensub(/.*\//, "", 1, $1) reset;
+        info = gensub(/[^ ]* /, "", 1);
+        print repo, name, info, descr;
+      }' blue="$c_blue" green="$c_green" reset="$c_reset"
+    )
+  )
+  mapfile -t pkgs < <(awk '{print $2}' <<< "out")
+  (( ${#pkgs} > 0 )) || exit
+  echo "installing ${pkgs[*]}"
+  ${search/pacman/sudo pacman} -S "${pkgs[@]}"
+fi

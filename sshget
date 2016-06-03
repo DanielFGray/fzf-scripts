@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+declare -r fifo='/tmp/sshget.fifo'
+declare -A domains=()
+declare -A paths=()
+declare -a files=()
+declare -A requests=()
+
+cleanup() {
+  [[ -e "$fifo" ]] && rm "$fifo"
+}
+trap cleanup SIGHUP SIGINT SIGTERM
+
+mkfifo "$fifo"
+
+for a in "$@"; do
+  host="${a%%:*}"
+  path="${a##*:}"
+  domains+=( ["$a"]="$host" )
+  paths+=( ["$a"]="$path" )
+  shift
+done
+
+for s in "${!domains[@]}"; do
+  ssh "${domains[$s]}" "find ${paths[$s]}" | sed -r "s|^(.*)|${domains[$s]}:\"\1\"|" >> "$fifo" &
+done
+
+mapfile -t files < <( fzf -e --inline-info --multi --cycle --query="$*" < "$fifo" )
+
+if (( ${#files[@]} )); then
+  rsync -auvzP -e ssh "${files[@]}" .
+fi
+
+cleanup

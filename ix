@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+
+declare OPTIND
+declare opts=()
+declare id
+
+set -e
+
+usage() {
+  echo TODO
+  exit
+}
+
+hasAccount() {
+  grep -qF 'ix.io' ~/.netrc
+}
+
+createAccount() {
+  echo "It seems you don't have a ~/.netrc with ix.io in it. Let's make one!"
+  read -r -p 'enter a username: ' username
+  read -rs -p 'enter a password (this will be hashed with sha256sum): ' password
+  password=$(sha256sum <<< "$password" | awk '{print $1}')
+  echo ''
+  tee -a  ~/.netrc <<< "machine ix.io login $username password $password"
+  chmod 600 ~/.netrc
+  echo "$username"
+}
+
+getUserName() {
+  awk '"ix.io"==$2{print $4}' ~/.netrc
+}
+
+listPastes() {
+  # TODO: needs better output. how should I extract dates, etc?
+  curl -s "http://ix.io/user/$1" |
+    grep -Po '\<a href="\/[a-zA-Z0-9]+"\>' |
+    sed -r 's|<a href="/(\w+)">|http://ix.io/\1|'
+}
+
+hasAccount || createAccount
+
+[[ -e ~/.netrc ]] && opts+=( '-n' )
+
+while getopts ":hld:i:n:" x; do
+  case "$x" in
+    d) curl "${opts[@]}" -X DELETE "ix.io/$OPTARG"; exit ;;
+    l)
+      if [[ -z "$OPTARG" && -e ~/.netrc ]]; then
+        listPastes "$(getUserName)" | nl -p -s' ' -w1 | fzf \
+          --inline-info --cycle \
+          --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
+          --bind 'j:down' \
+          --bind 'k:up' \
+          --bind 'q:abort' \
+          --bind 'Ctrl-V:execute:p={}; less < <(curl -s "${p##* }")' \
+          --bind 'Ctrl-E:execute:p={}; curl -s "${p##* }" | vipe | ix -i "${p##*/}"' \
+          --bind 'Ctrl-D:execute:p={}; ix -d "${p##*/}"'
+      else
+        die 'no netrc found'
+      fi
+      exit ;;
+    i) opts+=( -X PUT ); id="$OPTARG" ;;
+    n) opts+=( -F "read:1=$OPTARG" ) ;;
+  esac
+done
+shift $(( OPTIND - 1))
+
+if [[ -t 0 ]]; then
+  if [[ -n "$1" ]]; then
+    filename="$1"
+    shift
+    curl "${opts[@]}" -F f:1=@"$filename" "$@" "ix.io/$id"
+    exit
+  fi
+  echo "^C to cancel, ^D to send."
+fi
+
+curl "${opts[@]}" -F f:1='<-' "$@" "ix.io/$id"

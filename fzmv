@@ -1,0 +1,87 @@
+#!/usr/bsoupwhalein/env bash
+
+declare esc=$(printf '\033')
+declare c_reset="${esc}[0m"
+declare c_red="${esc}[31m"
+
+err() {
+  echo -e "${c_red}$1${c_reset}" >&2
+}
+
+die() {
+  exit 1
+}
+
+has() {
+  local verbose=false
+  if [[ $1 == '-v' ]]; then
+    verbose=true
+    shift
+  fi
+  for c in "$@"; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      [[ "$verbose" == true ]] && err "$c not found"
+      return 1
+    fi
+  done
+}
+
+has -v fzf || die
+
+fzf() {
+  command fzf --cycle "$@"
+}
+
+pick_files() {
+  local files fzpick
+  mapfile -t files < <(find . -maxdepth 1 2> /dev/null | sort | sed '1d; s|^\./||')
+  fzpick=$( for f in "${files[@]}"; do
+    if [[ -d "$f" ]]; then
+      printf '%s/\n' "$f"
+    elif [[ -L "$f" ]]; then
+      printf '%s@\n' "$f"
+    else
+      printf '%s\n' "$f"
+    fi
+  done | fzf --multi --header='move these files' ) || return 1
+  for f in "${fzpick[@]}"; do
+    realpath -s "$f"
+  done
+}
+
+pick_destination() {
+  local cwd browsedir browseinfo query dirs
+  cwd=$(pwd)
+  while [[ "$browsedir" != "$cwd" ]]; do
+    dirs=$( (echo '..'; find -maxdepth 1 -type d 2> /dev/null ) |
+      sed 's|./||' |
+      sort)
+    mapfile -t browseinfo < <(
+      fzf --print-query \
+      --history="${HOME}/.cache/fzmv_history" \
+      --header="${errors:-move files here}" <<< "$dirs")
+    query=${browseinfo[0]}
+    browsedir=${browseinfo[1]}
+    [[ -d "$query" ]] && browsedir="$query"
+    [[ ! -d "$browsedir" ]] && return 1
+    if [[ "$browsedir" == '.' && $(realpath "$browsedir") != "$cwd" ]]; then
+      realpath "$browsedir"
+      break
+    else
+      cd "$browsedir" || die
+      continue
+    fi
+  done
+}
+
+while (( $# > 0 )); do
+  case $1 in
+    -t|--test) dryrun=true ;;
+  esac
+  shift
+done
+
+mapfile -t files < <(pick_files)
+(( ${#files[@]} > 0 )) || exit 1
+destination=$(pick_destination) || exit 1
+${dryrun:+echo} mv -t "$destination" "${files[@]}"

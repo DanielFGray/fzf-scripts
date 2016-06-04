@@ -4,6 +4,17 @@ declare esc=$(printf '\033')
 declare c_reset="${esc}[0m"
 declare c_red="${esc}[31m"
 
+usage() {
+  more <<'HELP'
+fzmp [OPTIONS]
+
+-A|--all       search all songs in the library
+-a|--artist    search artist then filter by album
+-p|--playlist  search the current playlist
+-h|--help      print this help
+HELP
+}
+
 isRunning() {
   pgrep "$1" &> /dev/null
 }
@@ -90,8 +101,10 @@ isRunning mpd || die 'mpd not running'
 declare filter='filterAll'
 while true; do
   case "$1" in
+    -A|--all)      filter='filterAll'       ; shift ;;
     -a|--artist)   filter='filterByArtist'  ; shift ;;
     -p|--playlist) filter='filterByPlayist' ; shift ;;
+    -h|--help)     usage                    ; exit  ;;
     *) break
   esac
 done

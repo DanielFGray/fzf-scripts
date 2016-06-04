@@ -4,7 +4,38 @@ declare OPTIND
 declare opts=()
 declare id
 
-set -e
+usage() {
+  more <<'HELP'
+ix [OPTIONS]
+
+-l             list all pastes, uses fzf for interactive use
+-d [id]        delete the paste at [id]
+-i [id]        replaces the paste with stdin
+-h             print this help
+HELP
+}
+
+err() {
+  echo -e "${c_red}$1${c_reset}" >&2
+}
+
+die() {
+  exit 1
+}
+
+has() {
+  local verbose=false
+  if [[ $1 == '-v' ]]; then
+    verbose=true
+    shift
+  fi
+  for c in "$@"; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      [[ "$verbose" == true ]] && err "$c not found"
+      return 1
+    fi
+  done
+}
 
 usage() {
   echo TODO
@@ -37,12 +68,15 @@ listPastes() {
     sed -r 's|<a href="/(\w+)">|http://ix.io/\1|'
 }
 
+has -v curl || die
+
 hasAccount || createAccount
 
 [[ -e ~/.netrc ]] && opts+=( '-n' )
 
 while getopts ":hld:i:n:" x; do
   case "$x" in
+    h) usage; exit ;;
     d) curl "${opts[@]}" -X DELETE "ix.io/$OPTARG"; exit ;;
     l)
       if [[ -z "$OPTARG" && -e ~/.netrc ]]; then

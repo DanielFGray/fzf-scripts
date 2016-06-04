@@ -4,7 +4,40 @@ declare -r fifo='/tmp/sshget.fifo'
 declare -A domains=()
 declare -A paths=()
 declare -a files=()
-declare -A requests=()
+
+declare esc=$(printf '\033')
+declare c_reset="${esc}[0m"
+declare c_red="${esc}[31m"
+
+usage() {
+  more <<'HELP'
+sshget user@host1:/path/to/search user@host2:/path/to/search
+HELP
+}
+
+err() {
+  echo -e "${c_red}$1${c_reset}" >&2
+}
+
+die() {
+  exit 1
+}
+
+has() {
+  local verbose=false
+  if [[ $1 == '-v' ]]; then
+    verbose=true
+    shift
+  fi
+  for c in "$@"; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      [[ "$verbose" == true ]] && err "$c not found"
+      return 1
+    fi
+  done
+}
+
+has -v fzf rsync || die
 
 cleanup() {
   [[ -e "$fifo" ]] && rm "$fifo"
@@ -25,7 +58,7 @@ for s in "${!domains[@]}"; do
   ssh "${domains[$s]}" "find ${paths[$s]}" | sed -r "s|^(.*)|${domains[$s]}:\"\1\"|" >> "$fifo" &
 done
 
-mapfile -t files < <( fzf -e --inline-info --multi --cycle --query="$*" < "$fifo" )
+mapfile -t files < <( fzf -e --inline-info --multi --cycle < "$fifo" )
 
 if (( ${#files[@]} )); then
   rsync -auvzP -e ssh "${files[@]}" .

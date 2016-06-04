@@ -10,7 +10,7 @@ Lists or searches for files and opens them with a command, defaults to `vim`. Ki
 
 ## fzgit
 
-Interactive git wrapper.
+Interactive git wrapper. Very much still a work in progress, but it has same very cool functions already.
 
 *depends on `git`*
 
@@ -22,7 +22,7 @@ Lists and searches for songs in an MPD library by artist, album, or playlist.
 
 ## fzmv
 
-Interactively move files.
+Interactively move files. It was originally just an experiment to see what it would be like to make a file explorer with fzf.
 
 ## ix
 

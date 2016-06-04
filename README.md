@@ -16,7 +16,7 @@ Interactive git wrapper. Very much still a work in progress, but it has same ver
 
 ## fzmp
 
-Lists and searches for songs in an MPD library by artist, album, or playlist.
+Lists and searches for songs in an MPD library by artist, album, or playlist. I wrote a [blog post](https://danielfgray.github.io/computers/fzmp) about writhing this script.
 
 *depends on `mpc`*
 

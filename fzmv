@@ -1,4 +1,4 @@
-#!/usr/bsoupwhalein/env bash
+#!/usr/bin/env bash
 
 declare esc=$(printf '\033')
 declare c_reset="${esc}[0m"

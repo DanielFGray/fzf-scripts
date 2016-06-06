@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+if [[ -e $HOME/.bash_utils ]]; then
+  source "$HOME/.bash_utils"
+else
+  echo -e "\e[31mbash_utils not found\e[0m" >&2
+  exit 1
+fi
+
+openurl() {
+  local url="$1"
+  local browser
+  case "$url" in
+    *youtube.com*|*youtu.be*|*vimeo.com*)
+      browser=$(select-from \
+        mpv mplayer2 mplayer) ;;
+    *)
+      browser=$(select-from \
+        -c "pgrep -u $USER -i" \
+        firefox chromium-browser chrome)
+      [[ ! $browser ]] && browser='w3m'
+      ;;
+  esac
+  $browser "$url"
+}
+
+# http://stackoverflow.com/a/10660730
+rawurlencode() {
+  local string="$*"
+  local strlen=${#string}
+  local encoded=""
+  for (( pos=0; pos < strlen; pos++ )); do
+    c="${string:$pos:1}"
+    case "$c" in
+      [-_.~a-zA-Z0-9])
+        o="$c" ;;
+      *)
+        printf -v o '%%%02x' "'$c"
+    esac
+    encoded+="${o}"
+  done
+  echo "${encoded}"
+}
+
+has -v curl jq fzf || die
+
+if [[ -z "$*" ]]; then
+  die 'nothing to search for'
+fi
+
+response=$( curl -sfL "http://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=8&q=$(rawurlencode "$*")" ) || die 'error connecting to google, check connection'
+json=$( jq -c '.["responseData"]["results"] | map("\(.unescapedUrl) \(.title) | \(.content)") | .[]' <<< "$response" ) || die 'error parsing results :('
+url=$( fzf -e --ansi --cycle --inline-info <\
+  <( sed -r 's/<[^>]*>//g; s/\\n//g; s/^\s*"//; s/",?$//' <<< "$json" ) |
+  cut -d' ' -f1 )
+
+if [[ -n "$url" ]]; then
+  openurl "$url"
+fi

@@ -24,6 +24,12 @@ Lists and searches for songs in an MPD library by artist, album, or playlist. I 
 
 Interactively move files. It was originally just an experiment to see what it would be like to make a file explorer with fzf.
 
+## goog
+
+Google search from the command line. This is now broken since google deprecated the API I used and I have yet to update to the newer version..
+
+*depends on `jq` and `curl`*
+
 ## ix
 
 Uploads files to http://ix.io and allows listing and editing of uploads.

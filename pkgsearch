@@ -6,6 +6,17 @@ declare c_red="${esc}[31m"
 declare c_green="${esc}[32m"
 declare c_blue="${esc}[34m"
 
+usage() {
+  LESS=-EXR less <<-HELP
+pkgsearch [query]
+lists and installs packages from your distro's repositories
+
+without any arguments pkgsearch will list all available packages from your cache
+all arguments are passed as search strings
+note: on Arch Linux you must pass a string to query the AUR
+HELP
+}
+
 err() {
   echo -e "${c_red}$1${c_reset}" >&2
 }
@@ -47,28 +58,6 @@ select-from() {
   return 1
 }
 
-usage() {
-  LESS=-EXR less <<-HELP
-pkgsearch [query]
-lists and installs packages from your distro's repositories
-
-without any arguments pkgsearch will list all available packages from your cache
-all arguments are passed as search strings
-note: on Arch Linux you must pass a string to query the AUR
-HELP
-}
-
-if [[ $1 == -h ]]; then
-  usage
-  exit
-fi
-
-has -v fzf || die
-
-declare search
-declare out
-declare -a pkgs
-
 fzf() {
   command fzf -e +s --multi --cycle --ansi --no-hscroll --inline-info --reverse "$@"
 }
@@ -104,6 +93,13 @@ arch() {
   echo "installing ${pkgs[*]}"
   ${search/pacman/sudo pacman} -S "${pkgs[@]}"
 }
+
+if [[ $1 == -h ]]; then
+  usage
+  exit
+fi
+
+has -v fzf || die
 
 request="$*"
 if [[ -f /etc/debian_version ]]; then

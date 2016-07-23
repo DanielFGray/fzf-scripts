@@ -68,7 +68,7 @@ install() {
   mapfile -t pkgs
   (( ${#pkgs} > 0 )) || exit
   echo "installing ${pkgs[*]}"
-  $installer "${pkgs[@]}" &> /dev/tty
+  $installer "${pkgs[@]}" < /dev/tty
 }
 
 debian() {

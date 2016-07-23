@@ -5,15 +5,18 @@ declare c_reset="${esc}[0m"
 declare c_red="${esc}[31m"
 declare c_green="${esc}[32m"
 declare c_blue="${esc}[34m"
+declare reverse
 
 usage() {
-  LESS=-EXR less <<-HELP
-pkgsearch [query]
-lists and installs packages from your distro's repositories
+  LESS=-EXR less <<HELP
+pkgsearch [options] [query]
+  lists and installs packages from your distro's repositories
 
-without any arguments pkgsearch will list all available packages from your cache
-all arguments are passed as search strings
-note: on Arch Linux you must pass a string to query the AUR
+  -r --reverse    reverse the orientation of the layout
+  -h --help       show this help
+
+  without any arguments pkgsearch will list all available packages from your cache
+  note: on Arch Linux you must pass a string to query the AUR
 HELP
 }
 
@@ -60,6 +63,7 @@ select-from() {
 
 fzf() {
   command fzf -e +s --multi --cycle --ansi \
+    ${reverse:+--reverse} \
     --no-hscroll --inline-info \
     --header='tab to select multiple packages, Ctrl-X for more info on a package' "$@"
 }
@@ -104,10 +108,13 @@ arch() {
     install "${search/pacman/sudo pacman} -S"
 }
 
-if [[ $1 == -h ]]; then
-  usage
-  exit
-fi
+while true; do
+  case "$1" in
+    -r|--reverse)  reverse=1  ; shift ;;
+    -h|--help)     usage      ; exit  ;;
+    *) break
+  esac
+done
 
 has -v fzf || die
 

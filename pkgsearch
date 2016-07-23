@@ -62,36 +62,39 @@ fzf() {
   command fzf -e +s --multi --cycle --ansi --no-hscroll --inline-info --reverse "$@"
 }
 
-debian() {
-  local out pkgs
-  out=$(fzf --query="$1" < <( \
-      apt-cache search '' |
-      sort |
-      sed -u -r "s|^([^ ]+)|${c_green}\1${c_reset}|" ) )
-  mapfile -t pkgs < <(awk '{print $1}' <<< "$out")
+install() {
+  local installer pkgs
+  installer="$1"
+  mapfile -t pkgs
   (( ${#pkgs} > 0 )) || exit
-  sudo $(select-from 'apt' 'apt-get') install "${pkgs[@]}"
+  echo "installing ${pkgs[*]}"
+  $installer "${pkgs[@]}" &> /dev/tty
+}
+
+debian() {
+  fzf --query="$1" < <(apt-cache search '' |
+    sort |
+    sed -u -r "s|^([^ ]+)|${c_green}\1${c_reset}|") |
+    cut -d' ' -f1 |
+    install "sudo $(select-from 'apt' 'aptitude' 'apt-get') install"
 }
 
 arch() {
-  local search out pkgs
+  local search
   search='pacman'
-  (( $# > 0)) && search=$(select-from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
-  out=$(fzf < <( $search -Ss "$1" |
-      awk '{
+  [[ -n "$1" ]] && search=$(select-from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
+  fzf < <( $search -Ss "$1" |
+    awk '{
         getline descr;
         sub(/ */,"", descr);
-        repo = blue gensub(/\/.*/, "", 1) reset;
+        repo = blue "[" gensub(/\/.*/, "", 1) "]" reset;
         name = green gensub(/.*\//, "", 1, $1) reset;
         info = gensub(/[^ ]* /, "", 1);
-        print repo, "\t", name, info, descr;
+        print repo, name, info, descr;
       }' blue="$c_blue" green="$c_green" reset="$c_reset"
-    )
-  )
-  mapfile -t pkgs < <(awk '{print $2}' <<< "$out")
-  (( ${#pkgs} > 0 )) || exit
-  echo "installing ${pkgs[*]}"
-  ${search/pacman/sudo pacman} -S "${pkgs[@]}"
+    ) |
+    cut -d' ' -f2 |
+    install "${search/pacman/sudo pacman} -S"
 }
 
 if [[ $1 == -h ]]; then

@@ -47,6 +47,22 @@ select-from() {
   return 1
 }
 
+usage() {
+  LESS=-EXR less <<-HELP
+pkgsearch [query]
+lists and installs packages from your distro's repositories
+
+without any arguments pkgsearch will list all available packages from your cache
+all arguments are passed as search strings
+note: on Arch Linux you must pass a string to query the AUR
+HELP
+}
+
+if [[ $1 == -h ]]; then
+  usage
+  exit
+fi
+
 has -v fzf || die
 
 declare search

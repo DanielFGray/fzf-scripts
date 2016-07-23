@@ -59,7 +59,9 @@ select-from() {
 }
 
 fzf() {
-  command fzf -e +s --multi --cycle --ansi --no-hscroll --inline-info --reverse "$@"
+  command fzf -e +s --multi --cycle --ansi \
+    --no-hscroll --inline-info \
+    --header='tab to select multiple packages, Ctrl-X for more info on a package' "$@"
 }
 
 install() {
@@ -72,7 +74,9 @@ install() {
 }
 
 debian() {
-  fzf --query="$1" < <(apt-cache search '' |
+  fzf --bind="Ctrl-X:execute[p={} ;
+      less < <(apt-cache show \$(awk '{print \$1}' <<< \$p)) > /dev/tty]" \
+      --query="$1" < <(apt-cache search '' |
     sort |
     sed -u -r "s|^([^ ]+)|${c_green}\1${c_reset}|") |
     cut -d' ' -f1 |
@@ -83,7 +87,10 @@ arch() {
   local search
   search='pacman'
   [[ -n "$1" ]] && search=$(select-from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
-  fzf < <( $search -Ss "$1" |
+  fzf \
+    --bind="Ctrl-X:execute[p={} ;
+      less < <($search -Si \$(awk '{print \$2}' <<< \$p)) > /dev/tty]" \
+    < <( $search -Ss "$1" |
     awk '{
         getline descr;
         sub(/ */,"", descr);

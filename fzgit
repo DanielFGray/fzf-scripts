@@ -217,7 +217,7 @@ git_add() { # {{{
   local out response query key header
   header='use ctrl-p to add in patch mode'
   # TODO: needs better filtering
-  while out=$(git ls-files --exclude-standard |
+  while out=$(git ls-files -m --exclude-standard |
     fzf --prompt='add' --tac --multi \
       --header="$header" --query="$query" --print-query \
       --bind=ctrl-p:accept --expect=ctrl-p)

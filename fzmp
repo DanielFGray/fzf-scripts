@@ -8,10 +8,10 @@ usage() {
   more <<'HELP'
 fzmp [OPTIONS]
 
--A|--all       search all songs in the library
--a|--artist    search artist then filter by album
--p|--playlist  search the current playlist
--h|--help      print this help
+  -A --all       search all songs in the library (or F1)
+  -a --artist    search artist then filter by album (or F2)
+  -p --playlist  search the current playlist (or F3)
+  -h --help      print this help
 HELP
 }
 

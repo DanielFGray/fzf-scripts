@@ -4,47 +4,47 @@ This is a collection of scripts I've written that use [fzf](https://github.com/j
 
 Almost all of them require various tools from coreutils like `awk` `sed` `cut`.
 
-## [fv](blob/master/fv)
+## [fv](fv)
 
 Lists or searches for files and opens them with a command, defaults to `vim`. Kind of a shortcut for `vim $(ag 'foo' | fzf)`, lists files if no search string is given.
 
-## [fzgit](blob/master/fzgit)
+## [fzgit](fzgit)
 
 Interactive git wrapper. Very much still a work in progress, but it has same very cool functions already.
 
 *depends on `git`*
 
-## [fzmp](blob/master/fzmp)
+## [fzmp](fzmp)
 
 Lists and searches for songs in an MPD library by artist, album, or playlist. I wrote a [blog post](https://danielfgray.github.io/computers/fzmp) about writing this script.
 
 *depends on `mpc`*
 
-## [fzmv](blob/master/fzmv)
+## [fzmv](fzmv)
 
 Interactively move files. It was originally just an experiment to see what it would be like to make a file explorer with fzf.
 
-## [goog](blob/master/goog)
+## [goog](goog)
 
 Google search from the command line. This is now broken since google deprecated the API I used and I have yet to update to the newer version..
 
 *depends on `jq` and `curl`*
 
-## [ix](blob/master/ix)
+## [ix](ix)
 
 Uploads files to http://ix.io and allows listing and editing of uploads.
 
 *depends on `curl`*
 
-## [pkgsearch](blob/master/pkgsearch)
+## [pkgsearch](pkgsearch)
 
 Searches Debian/Ubuntu and Arch repos (including the AUR) and installs multiple packages.
 
-## [sshget](blob/master/sshget)
+## [sshget](sshget)
 
 Lists files from remote servers and `rsync`s them to the current directory
 
-## [wifi](blob/master/wifi)
+## [wifi](wifi)
 
 List and connect to wifi networks
 

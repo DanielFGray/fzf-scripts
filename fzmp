@@ -5,7 +5,7 @@ declare c_reset="${esc}[0m"
 declare c_red="${esc}[31m"
 
 usage() {
-  more <<'HELP'
+  LESS=-EXR less <<'HELP'
 fzmp [OPTIONS]
 
   -A --all       search all songs in the library (or F1)
@@ -20,11 +20,11 @@ isRunning() {
 }
 
 err() {
-  echo -e "${c_red}$1${c_reset}" >&2
+  printf "${c_red}%s${c_reset}\n" "$*" >&2
 }
 
 die() {
-  [[ -n "$1" ]] && err "$1"
+  [[ -n "$1" ]] && err "$*"
   exit 1
 }
 
@@ -108,7 +108,7 @@ filterBySong() {
     filterByAlbum "$artist"
     return 0
   fi
-  echo "$choice"
+  printf '%s' "$choice"
 }
 
 filterByPlaylist() {

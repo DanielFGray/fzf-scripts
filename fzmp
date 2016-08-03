@@ -6,7 +6,7 @@ declare -r c_red="${esc}[31m"
 declare -r track_format='[[[%artist% / ][[(%date%) ]%album% / ][%track%] - [%title%]]|%file%]'
 
 usage() {
-  LESS=-EXR less <<'HELP'
+  LESS=-FEXR less <<'HELP'
 fzmp [OPTIONS]
 
   -A --all       search all songs in the library (or F1 when running)
@@ -44,7 +44,7 @@ has() {
 }
 
 fzf() {
-  command fzf -e --reverse --cycle +s --inline-info "$@"
+  command fzf -e -i --reverse --cycle --inline-info "$@"
 }
 
 filterAllSongs() {
@@ -142,9 +142,6 @@ playSongs() {
   filterPlaylist
 }
 
-has -v fzf mpc || die
-isRunning mpd || die 'mpd not running'
-
 declare filter='filterAllSongs'
 while :; do
   case "$1" in
@@ -155,5 +152,8 @@ while :; do
     *) break
   esac
 done
+
+has -v fzf mpc || die
+isRunning mpd || die 'mpd not running'
 
 $filter

@@ -117,6 +117,7 @@ filterPlaylist() {
   current_song=$(mpc current -f "$track_format")
   mapfile -t choice < <(mpc playlist -f "%position%\t$track_format" |
     fzf --prompt='playlist > ' \
+      --multi \
       ${current_song:+--header="now playing: ${current_song}"} \
       --delimiter='\t' \
       --with-nth='2..' \
@@ -127,8 +128,8 @@ filterPlaylist() {
     'f2') filterByArtist ;;
     '>') mpc -q next ; filterPlaylist ;;
     '<') mpc -q prev ; filterPlaylist ;;
-    'ctrl-d') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[1]}" ; filterPlaylist ;;
-    'enter') [[ -n "${choice[1]}" ]] && mpc -q play "${choice[1]}" ; filterPlaylist ;;
+    'ctrl-d') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[@]:1}" ; filterPlaylist ;;
+    'enter') [[ -n "${choice[1]}" ]] && mpc -q play "${choice[@]:1}" ; filterPlaylist ;;
   esac
 }
 

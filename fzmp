@@ -127,8 +127,8 @@ filterPlaylist() {
     'f2') filterByArtist ;;
     '>') mpc -q next ; filterPlaylist ;;
     '<') mpc -q prev ; filterPlaylist ;;
-    'ctrl-d') mpc -q del "${choice[1]}" ; filterPlaylist ;;
-    'enter') mpc -q play "${choice[1]}" ; filterPlaylist ;;
+    'ctrl-d') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[1]}" ; filterPlaylist ;;
+    'enter') [[ -n "${choice[1]}" ]] && mpc -q play "${choice[1]}" ; filterPlaylist ;;
   esac
 }
 

@@ -155,6 +155,6 @@ while :; do
 done
 
 has -v fzf mpc || die
-isRunning mpd || die 'mpd not running'
+isRunning mpd || [[ -n "$MPD_HOST" ]] || die "can't connect to mpd"
 
 $filter

@@ -113,10 +113,11 @@ filterSongsFromAlbum() {
 }
 
 filterPlaylist() {
-  local choice
+  local choice 
+  current_song=$(mpc current -f "$track_format")
   mapfile -t choice < <(mpc playlist -f "%position%\t$track_format" |
     fzf --prompt='playlist > ' \
-      --header="now playing: $(mpc current -f "$track_format")" \
+      ${current_song:+--header="now playing: ${current_song}"} \
       --delimiter='\t' \
       --with-nth='2..' \
       --expect='f1,f2,>,<,ctrl-d,enter' |

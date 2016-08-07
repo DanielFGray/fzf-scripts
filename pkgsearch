@@ -69,12 +69,13 @@ fzf() {
 }
 
 install() {
-  local installer pkgs
-  installer="$1"
+  local pkgs count
   mapfile -t pkgs
   (( ${#pkgs} > 0 )) || exit
-  echo "installing ${pkgs[*]}"
-  $installer "${pkgs[@]}" < /dev/tty
+  count="${#pkgs[@]} package"
+  (( ${#pkgs[@]} > 1 )) && count+='s'
+  echo "installing ${count}: ${pkgs[*]}"
+  $1 "${pkgs[@]}" < /dev/tty
 }
 
 debian() {

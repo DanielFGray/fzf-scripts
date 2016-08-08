@@ -112,7 +112,7 @@ arch() {
 
 void() {
   fzf --ansi < <(xbps-query -Rs '' | sort) |
-    awk '{sub(/-[^\-]*$/, \"\", \$2); print \$2}' |
+    awk '{sub(/-[^\-]*$/, "", $2); print $2}' |
     install 'xbps-install -S'
 }
 

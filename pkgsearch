@@ -79,14 +79,9 @@ install() {
 }
 
 debian() {
-  packageName() {
-    cut -d' ' -f1
-  }
-  export packageName
-
-  fzf --bind="Ctrl-X:execute[p={} ;
-        less < <(apt-cache show
-          \$(packageName <<< \$p)) > /dev/tty]" \
+  fzf --bind="Ctrl-X:execute[
+        p=\$(cut -d' ' -f1 <<< {});
+        less < <(apt-cache show \$p) > /dev/tty]" \
       --query="$1" \
     < <(apt-cache search '' | sort |
       sed -u -r "s|^([^ ]+)|${c_green}\1${c_reset}|") |
@@ -95,28 +90,35 @@ debian() {
 }
 
 arch() {
-  packageName() {
-    cut -d' ' -f2
-  }
-  export packageName
-
   local search packages
   search='pacman'
   [[ -n "$1" ]] && search=$(select-from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
-  packages=$(fzf --bind="Ctrl-X:execute[p={} ;
-      less < <($search -Si \$(packageName <<< \$p)) > /dev/tty]" \
+  packages=$(fzf --bind="Ctrl-X:execute[
+      p=\$(cut -d' ' -f2 <<< {});
+      less < <($search -Si \$p) > /dev/tty]" \
     < <( $search -Ss "$1" |
-      awk '{
-          getline descr;
-          sub(/ */,"", descr);
-          repo = blue "[" gensub(/\/.*/, "", 1) "]" reset;
-          name = green gensub(/.*\//, "", 1, $1) reset;
-          info = gensub(/[^ ]* /, "", 1);
-          print repo, name, info, descr;
+      gawk '{
+        getline descr;
+        sub(/ */,"", descr);
+        repo = blue "[" gensub(/\/.*/, "", 1) "]" reset;
+        name = green gensub(/.*\//, "", 1, $1) reset;
+        info = gensub(/[^ ]* /, "", 1);
+        print repo, name, info, descr;
       }' blue="$c_blue" green="$c_green" reset="$c_reset"
-    ) | packageName)
+    ) | cut -d' ' -f1)
   [[ "$search" == "pacman" ]] && search="sudo pacman"
   install "$search -S" <<< "$packages"
+}
+
+void() {
+  fzf --ansi < <(xbps-query -Rs '' |
+    sort |
+    awk '{
+      match($0, /-[^-]*$/);
+      print substr($0, 1, RSTART - 1) " " substr($0, RSTART + 1);
+    }') |
+    cut -d' ' -f2 |
+    install 'xbps-install -S'
 }
 
 while true; do
@@ -127,7 +129,7 @@ while true; do
   esac
 done
 
-has -v fzf || die
+has -v fzf gawk || die
 
 request="$*"
 osrelease=$(awk -F'=' '/^NAME/{gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)

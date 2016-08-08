@@ -6,7 +6,7 @@ declare -r c_red="${esc}[31m"
 declare -r track_format='[[[%artist% / ][[(%date%) ]%album% / ][%track%] - [%title%]]|%file%]'
 
 usage() {
-  LESS=-FEXR less <<'HELP'
+  LESS=-FEXR less <<HELP
 fzmp [OPTIONS]
 
   -A --all       search all songs in the library (or F1 when running)

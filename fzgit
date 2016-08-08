@@ -185,27 +185,25 @@ declare -A implemented_git_cmds=(
   ['stash']='git_stash'
   ['add']='git_add'
   ['checkout']='git_checkout'
-  ['commit']='git commit -e'
+  ['commit']='git commit -v'
   ['push']='git push'
   ['log']='git_log'
 )
 
 git_log() { # {{{
   local out commit
-  while out=$(git log --graph --color=always \
+  git log --graph --color=always \
       --format="%C(auto)%h%d %s %C(black)%C(bold)%cr" "$@" |
-    fzf -e --prompt='log' --no-sort --tiebreak=index --toggle-sort=\`)
-  do
-    commit=$(grep -m1 -o '[a-f0-9]\{7\}' <<< "$out")
-    git show --color=always "$commit" | less -R
-  done
+    fzf -e --prompt='log' --no-sort --tiebreak=index \
+      --preview-window=up \
+      --preview="git show --color=always \"\$(grep -m1 -o \"[a-f0-9]\{7\}\" <<< {})\" | less -R"
 }
 # }}}
 
 git_checkout() { # {{{
   local list response key branch header
   list=$(git branch --all --color -vv; git tag) || return 1
-  mapfile -t response < <(fzf --prompt='checkout' \
+    mapfile -t response < <(fzf --prompt='checkout' \
     --header="$header" --expect=ctrl-x <<< "$list")
   key="${response[0]}"
   branch=$(perl -pe 's/^\*?\s*(remotes\/[^\/]*\/)?([^ ]+).*/\2/' <<< "${response[1]}")
@@ -216,18 +214,19 @@ git_checkout() { # {{{
 git_add() { # {{{
   local out response query key header
   header='use ctrl-p to add in patch mode'
-  # TODO: needs better filtering
-  while out=$(git ls-files -m --exclude-standard |
+  while out=$(git ls-files -mo --exclude-standard |
     fzf --prompt='add' --tac --multi \
-      --header="$header" --query="$query" --print-query \
-      --bind=ctrl-p:accept --expect=ctrl-p)
+        --header="$header" --query="$query" --print-query \
+        --preview='git diff --color=always {} 2>&1' \
+        --preview-window=up \
+        --bind=ctrl-p:accept --expect=ctrl-p)
   do
     mapfile -t response <<< "$out"
     query="${response[0]}" && unset response[0]
     key="${response[1]}" && unset response[1]
     [[ "${#response[@]}" == 0 ]] && continue
     if [[ "$key" == 'ctrl-p' ]]; then
-      git add -p "${response[@]}";
+      git add -p "${response[@]}" < /dev/tty
     else
       git add "${response[@]}"
     fi

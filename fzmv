@@ -3,6 +3,9 @@
 declare esc=$(printf '\033')
 declare c_reset="${esc}[0m"
 declare c_red="${esc}[31m"
+declare dryrun verbose
+
+set -e
 
 err() {
   echo -e "${c_red}$1${c_reset}" >&2
@@ -34,7 +37,7 @@ fzf() {
 
 pick_files() {
   local files fzpick
-  mapfile -t files < <(find . -maxdepth 1 2> /dev/null | sort | sed '1d; s|^\./||')
+  mapfile -t files < <(find . -maxdepth 1 2> /dev/null | sort -h | sed '1d; s|^\./||')
   fzpick=$( for f in "${files[@]}"; do
     if [[ -d "$f" ]]; then
       printf '%s/\n' "$f"
@@ -55,7 +58,7 @@ pick_destination() {
   while [[ "$browsedir" != "$cwd" ]]; do
     dirs=$( (echo '..'; find -maxdepth 1 -type d 2> /dev/null ) |
       sed 's|./||' |
-      sort)
+      sort -h)
     mapfile -t browseinfo < <(
       fzf --print-query \
       --history="${HOME}/.cache/fzmv_history" \
@@ -77,6 +80,7 @@ pick_destination() {
 while (( $# > 0 )); do
   case $1 in
     -t|--test) dryrun=true ;;
+    -v|--verbose) verbose=true ;;
   esac
   shift
 done
@@ -84,4 +88,4 @@ done
 mapfile -t files < <(pick_files)
 (( ${#files[@]} > 0 )) || exit 1
 destination=$(pick_destination) || exit 1
-${dryrun:+echo} mv -t "$destination" "${files[@]}"
+${dryrun:+echo} mv ${verbose:+-v} -t "$destination" "${files[@]}"

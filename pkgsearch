@@ -132,7 +132,7 @@ has -v fzf || die
 request="$*"
 osrelease=$(awk -F'=' '/^NAME/{gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)
 case "${osrelease%% *}" in
-  debian|ubuntu) arch "$request" ;;
+  debian|ubuntu) debian "$request" ;;
   arch) arch "$request" ;;
   void) void "$request" ;;
 esac

@@ -85,7 +85,7 @@ debian() {
       --query="$1" \
     < <(apt-cache search '' | sort |
       sed -u -r "s|^([^ ]+)|${c_green}\1${c_reset}|") |
-    packageName |
+    cut -d' ' -f1 |
     install "sudo $(select-from 'apt' 'aptitude' 'apt-get') install"
 }
 

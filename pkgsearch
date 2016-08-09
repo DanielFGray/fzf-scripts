@@ -111,7 +111,12 @@ arch() {
 }
 
 void() {
-  fzf --ansi < <(xbps-query -Rs '' | sort) |
+  local packagelist
+  packagelist=$(xbps-query -Rs '' | sort)
+  fzf --bind="Ctrl-X:execute[
+      p=\$(awk '{sub(/-[^\-]*$/, \"\", \$2); print \$2}' <<< {});
+      less < <(xbps-query -Rx \$p) > /dev/tty]" \
+        <<< "$packagelist" |
     awk '{sub(/-[^\-]*$/, "", $2); print $2}' |
     install 'xbps-install -S'
 }

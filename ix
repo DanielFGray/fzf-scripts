@@ -89,7 +89,7 @@ while getopts ":hld:i:n:" x; do
         listPastes "$(getUserName)" | nl -p -s' ' -w1 | fzf \
           --inline-info --cycle \
           --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
-          --preview='p={}; less < <(curl -s "${p##* }")' \
+          --preview='p={}; curl -s "${p##* }"' \
           --bind 'j:down' \
           --bind 'k:up' \
           --bind 'q:abort' \

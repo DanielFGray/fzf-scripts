@@ -65,10 +65,13 @@ getUserName() {
 }
 
 listPastes() {
-  # TODO: needs better output. how should I extract dates, etc?
   curl -s "http://ix.io/user/$1" |
-    grep -Po '\<a href="\/[a-zA-Z0-9]+"\>' |
-    sed -r 's|<a href="/(\w+)">|http://ix.io/\1|'
+    grep -A1 -P '\<a href="\/[a-zA-Z0-9]+"\>' |
+    awk -F'--' '
+      BEGIN {FS="<a href=\""}
+      /a href/{sub(/\">\[r\]<\/a>/, "\t", $2); printf "http://ix.io" $2}
+      /@/{sub(/^\s+/, "", $0); print}
+    '
 }
 
 has -v curl || die

@@ -64,7 +64,7 @@ getUserName() {
   awk '"ix.io"==$2{print $4}' ~/.netrc
 }
 
-listPastes() {
+getPastes() {
   curl -s "http://ix.io/user/$1" |
     grep -A1 -P '\<a href="\/[a-zA-Z0-9]+"\>' |
     awk -F'--' '
@@ -72,6 +72,19 @@ listPastes() {
       /a href/{sub(/\">\[r\]<\/a>/, "\t", $2); printf "http://ix.io" $2}
       /@/{sub(/^\s+/, "", $0); print}
     '
+}
+
+listPastes() {
+  getPastes "$(getUserName)" | nl -p -s' ' -w1 | fzf \
+    --inline-info --cycle \
+    --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
+    --preview='p=$(awk "{print \$2}" <<< {}); curl -s "$p"' \
+    --bind 'j:down' \
+    --bind 'k:up' \
+    --bind 'q:abort' \
+    --bind 'Ctrl-V:execute:p=$(awk "{print \$2}" <<< {}); less < <(curl -s "$p") > /dev/tty' \
+    --bind 'Ctrl-E:execute:p=$(awk "{print \$2}" <<< {}); curl -s "$p" | vipe > /dev/tty | ix -i "${p##*/}"' \
+    --bind 'Ctrl-D:execute:p=$(awk "{print \$2}" <<< {}); ix -d "${p##*/}"'
 }
 
 has -v curl || die
@@ -86,16 +99,7 @@ while getopts ":hld:i:n:" x; do
     d) curl "${opts[@]}" -X DELETE "ix.io/$OPTARG"; exit ;;
     l)
       if [[ -z "$OPTARG" && -e ~/.netrc ]]; then
-        listPastes "$(getUserName)" | nl -p -s' ' -w1 | fzf \
-          --inline-info --cycle \
-          --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
-          --preview='p=$(awk "{print \$2}" <<< {}); curl -s "$p"' \
-          --bind 'j:down' \
-          --bind 'k:up' \
-          --bind 'q:abort' \
-          --bind 'Ctrl-V:execute:p={}; less < <(curl -s "${p##* }")' \
-          --bind 'Ctrl-E:execute:p={}; curl -s "${p##* }" | vipe | ix -i "${p##*/}"' \
-          --bind 'Ctrl-D:execute:p={}; ix -d "${p##*/}"'
+        listPastes | awk '{print $2}' | tee /dev/tty | xclip
       else
         die 'no netrc found'
       fi

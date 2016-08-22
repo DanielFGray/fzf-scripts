@@ -8,7 +8,7 @@ declare dryrun verbose
 set -e
 
 err() {
-  echo -e "${c_red}$1${c_reset}" >&2
+  printf "${c_red}%s${c_reset}\n" "$*" >&2
 }
 
 die() {

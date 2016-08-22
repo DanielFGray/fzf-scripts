@@ -19,7 +19,7 @@ HELP
 }
 
 err() {
-  echo -e "${c_red}$1${c_reset}" >&2
+  printf "${c_red}%s${c_reset}\n" "$*" >&2
 }
 
 die() {
@@ -78,7 +78,7 @@ listPastes() {
   getPastes "$(getUserName)" | nl -p -s' ' -w1 | fzf \
     --inline-info --cycle \
     --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
-    --preview='p=$(awk "{print \$2}" <<< {}); curl -s "$p"' \
+    --preview='p=$(awk "{print \$2}" <<< {}); curl -s "$p" | highlight -O ansi' \
     --bind 'j:down' \
     --bind 'k:up' \
     --bind 'q:abort' \

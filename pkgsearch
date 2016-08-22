@@ -21,7 +21,7 @@ HELP
 }
 
 err() {
-  echo -e "${c_red}$1${c_reset}" >&2
+  printf "${c_red}%s${c_reset}\n" "$*" >&2
 }
 
 die() {
@@ -105,7 +105,7 @@ arch() {
         info = gensub(/[^ ]* /, "", 1);
         print repo, name, info, descr;
       }' blue="$c_blue" green="$c_green" reset="$c_reset"
-    ) | cut -d' ' -f1)
+    ) | cut -d' ' -f2)
   [[ "$search" == "pacman" ]] && search="sudo pacman"
   install "$search -S" <<< "$packages"
 }

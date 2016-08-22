@@ -16,7 +16,7 @@ ask() { # {{{
 # }}}
 
 err() { # {{{
-    echo -e "\e[31m$1\e[0m" >&2
+    printf "\e[31m%s\e[0m" "$*" >&2
 }
 # }}}
 
@@ -191,12 +191,13 @@ declare -A implemented_git_cmds=(
 )
 
 git_log() { # {{{
-  local out commit
-  git log --graph --color=always \
-      --format="%C(auto)%h%d %s %C(black)%C(bold)%cr" "$@" |
-    fzf -e --prompt='log' --no-sort --tiebreak=index \
-      --preview-window=up \
-      --preview="git show --color=always \"\$(grep -m1 -o \"[a-f0-9]\{7\}\" <<< {})\" | less -R"
+  local show="git show --color=always \"\$(grep -m1 -o \"[a-f0-9]\{7\}\" <<< {})\""
+  fzf --prompt='log' -e --no-sort --tiebreak=index \
+    --preview-window=up \
+    --bind="enter:execute:$show" \
+    --preview="$show" \
+  < <(git log --graph --color=always \
+    --format="%C(auto)%h%d %s %C(black)%C(bold)%cr" "$@")
 }
 # }}}
 

@@ -3,6 +3,11 @@
 # /usr/share/bash-completion/completions/git
 # https://github.com/junegunn/fzf/wiki/examples#git
 
+# declare BOLD=$(tput bold || tput md)
+declare c_reset="\e[0m"
+declare c_green=$(tput setaf 2 || tput AF 2)
+declare c_red=$(tput setaf 1 || tput AF 1)
+
 has() { # {{{
   command -v "$1" &> /dev/null
 }
@@ -16,7 +21,7 @@ ask() { # {{{
 # }}}
 
 err() { # {{{
-    printf "\e[31m%s\e[0m" "$*" >&2
+    printf "${c_red}%s${c_reset}" "$*" >&2
 }
 # }}}
 
@@ -36,15 +41,9 @@ fzf() { # {{{
     shift
   fi
   branch=$(git status 2> /dev/null | sed 's/On branch />/;q')
-  $(which fzf) --ansi --cycle --prompt="fzgit${branch}>${prompt}" "$@"
+  $(which fzf) --inline-info --ansi --cycle --prompt="fzgit${branch}>${prompt} " "$@"
 }
 # }}}
-
-# BOLD=$(tput bold || tput md)
-RESET="\e[0m"
-GREEN=$(tput setaf 2 || tput AF 2)
-# RED=$(tput setaf 1 || tput AF 1)
-# WHITE=$(tput setaf 7 || tput AF 7)
 
 declare -A git_cmds_descriptions=( # {{{
   ['add']='Add file contents to the index'
@@ -264,7 +263,7 @@ git_stash() { # {{{
 
 pick_cmd() {
   for c in "${!implemented_git_cmds[@]}"; do
-    printf "${GREEN}%s${RESET}| -- %s\n" "$c" "${git_cmds_descriptions[$c]}"
+    printf "${c_green}%s${c_reset}| -- %s\n" "$c" "${git_cmds_descriptions[$c]}"
   done | column -s'|' -t | fzf | awk '{print $1}'
 }
 

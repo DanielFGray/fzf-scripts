@@ -1,11 +1,31 @@
 #!/usr/bin/env bash
 
-if [[ -e $HOME/.bash_utils ]]; then
-  source "$HOME/.bash_utils"
-else
-  echo -e "\e[31mbash_utils not found\e[0m" >&2
+declare esc=$(printf '\033')
+declare c_reset="${esc}[0m"
+declare c_red="${esc}[31m"
+
+err() {
+  printf "${c_red}%s${c_reset}\n" "$*" >&2
+}
+
+die() {
+  [[ -n "$1" ]] && err "$1"
   exit 1
-fi
+}
+
+has() {
+  local verbose=false
+  if [[ $1 == '-v' ]]; then
+    verbose=true
+    shift
+  fi
+  for c in "$@"; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      [[ "$verbose" == true ]] && err "$c not found"
+      return 1
+    fi
+  done
+}
 
 openurl() {
   local url="$1"

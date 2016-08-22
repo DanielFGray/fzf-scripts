@@ -75,16 +75,16 @@ getPastes() {
 }
 
 listPastes() {
-  getPastes "$(getUserName)" | nl -p -s' ' -w1 | fzf \
+  getPastes "$(getUserName)" | fzf \
     --inline-info --cycle \
     --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
-    --preview='p=$(awk "{print \$2}" <<< {}); curl -s "$p" | highlight -O ansi' \
-    --bind 'j:down' \
-    --bind 'k:up' \
+    --preview='p={}; curl -s "${p## *}" | highlight -q --force -O ansi' \
+    --bind 'space:jump' \
+    --bind 'j:down' --bind 'k:up' \
     --bind 'q:abort' \
-    --bind 'Ctrl-V:execute:p=$(awk "{print \$2}" <<< {}); less < <(curl -s "$p") > /dev/tty' \
-    --bind 'Ctrl-E:execute:p=$(awk "{print \$2}" <<< {}); curl -s "$p" | vipe > /dev/tty | ix -i "${p##*/}"' \
-    --bind 'Ctrl-D:execute:p=$(awk "{print \$2}" <<< {}); ix -d "${p##*/}"'
+    --bind 'Ctrl-V:execute:p={}; p="${p## *}"; less -R < <(curl -s "$p" | highlight -q --force -O ansi) > /dev/tty' \
+    --bind 'Ctrl-E:execute:p={}; p="${p## *}"; curl -s "$p" | vipe > /dev/tty | ix -i "${p##*/}"' \
+    --bind 'Ctrl-D:execute:p={}; p="${p## *}"; ix -d "${p##*/}"'
 }
 
 has -v curl || die

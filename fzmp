@@ -27,7 +27,7 @@ CONFIGURATION:
   the configuration file reads the following variables:
 
   default_view=  must be 'artists' 'songs' or 'playlist'
-  format=        a format string to be passed directly to `mpc format -f`
+  format=        a format string to be passed directly to `mpc format -f` in 'playlist' and 'all' views
                  defaults to '[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
                  for colorized output try: '[[[\e\[32m%artist%\e\[0m / ][\e\[31m[(%date%) ]%album%\e\[0m / ][\e\[34m[%track% - ][%title%]\e\[0m]]|%file%]'
   fzf_options=   command line options to be passed directly to fzf

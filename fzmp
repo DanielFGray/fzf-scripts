@@ -71,13 +71,13 @@ fzf() {
 parseConfigFile() {
   local default_view format fzf_options
   source "$config_file" || die 'error reading configuration file'
-  case "$default_view" in
+  [[ -v default_view ]] && case "$default_view" in
     playlist) filter='filterPlaylist' ;;
     songs) filter='filterAllSongs' ;;
     artists) filter='filterByArtist' ;;
   esac
-  [[ -n "$format" ]] && track_format="$format"
-  [[ ! -v FZMP_FZF_OPTIONS && -n "$fzf_options" ]] && FZMP_FZF_OPTIONS="$fzf_options"
+  [[ -v format ]] && track_format="$format"
+  [[ ! -v FZMP_FZF_OPTIONS && -v fzf_options ]] && FZMP_FZF_OPTIONS="$fzf_options"
 }
 
 filterAllSongs() {
@@ -190,6 +190,6 @@ while :; do
 done
 
 has -v fzf mpc || die
-isRunning mpd || [[ -n "$MPD_HOST" ]] || die "can't connect to mpd"
+isRunning mpd || [[ ! -v MPD_HOST ]] || die "can't connect to mpd"
 
 $filter

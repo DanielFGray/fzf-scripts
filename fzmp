@@ -5,6 +5,7 @@ declare -r c_reset="${esc}[0m"
 declare -r c_red="${esc}[31m"
 declare -r config_file="${XDG_CONFIG_DIR:-$HOME/.config}/fzmp/conf"
 declare track_format='[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
+declare filter='filterAllSongs'
 
 usage() {
   LESS=-FEXR less <<'HELP'
@@ -31,8 +32,8 @@ CONFIGURATION:
                  for colorized output try: '[[[\e\[32m%artist%\e\[0m / ][\e\[31m[(%date%) ]%album%\e\[0m / ][\e\[34m[%track% - ][%title%]\e\[0m]]|%file%]'
   fzf_options=   command line options to be passed directly to fzf
                  changing this will override the default options: '+s -e -i --reverse --cycle'
-                 to use the jump feature of fzf you can try '+s -e -i --reverse --cycle --bind=space:jump'
-                 this can also be overridden with the environment variable "$FZMP_FZF_OPTIONS"
+                 to use the jump feature of fzf you can try '+s -e -i --reverse --cycle --bind=`:jump'
+                 this can also be overridden with the environment variable FZMP_FZF_OPTIONS
 HELP
 }
 
@@ -175,8 +176,6 @@ playSongs() {
   mpc -q play "$index"
   filterPlaylist
 }
-
-declare filter='filterAllSongs'
 
 [[ -s "$config_file" ]] && parseConfigFile
 

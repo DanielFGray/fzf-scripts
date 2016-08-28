@@ -76,7 +76,7 @@ parseConfigFile() {
     artists) filter='filterByArtist' ;;
   esac
   [[ -n "$format" ]] && track_format="$format"
-  [[ -n "$fzf_options" ]] && FZMP_FZF_OPTIONS="$fzf_options"
+  [[ ! -v FZMP_FZF_OPTIONS && -n "$fzf_options" ]] && FZMP_FZF_OPTIONS="$fzf_options"
 }
 
 filterAllSongs() {

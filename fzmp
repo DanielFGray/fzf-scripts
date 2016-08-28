@@ -3,16 +3,36 @@
 declare -r esc=$(printf '\033')
 declare -r c_reset="${esc}[0m"
 declare -r c_red="${esc}[31m"
-declare -r track_format='[[[%artist% / ][[(%date%) ]%album% / ][%track%] - [%title%]]|%file%]'
+declare -r config_file="${XDG_CONFIG_DIR:-$HOME/.config}/fzmp/conf"
+declare track_format='[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
 
 usage() {
-  LESS=-FEXR less <<HELP
+  LESS=-FEXR less <<'HELP'
 fzmp [OPTIONS]
 
+OPTIONS:
   -A --all       search all songs in the library (or F1 when running)
   -a --artist    search artist then filter by album (or F2 when running)
   -p --playlist  search the current playlist (or F3 when running)
+                 playlist view has the following keybinds:
+                 >   go to the next song in the playlist
+                 <   go to the previous song in the playlist
+                 C-d delete the selected songs from the playlist
   -h --help      print this help
+
+CONFIGURATION:
+  a configuration file can be defined at $XDG_CONFIG_DIR (defaults to ~/.config)
+  configuration options must be defined in the format of key=value
+  the configuration file reads the following variables:
+
+  default_view=  must be 'artists' 'songs' or 'playlist'
+  format=        a format string to be passed directly to `mpc format -f`
+                 defaults to '[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
+                 for colorized output try: '[[[\e\[32m%artist%\e\[0m / ][\e\[31m[(%date%) ]%album%\e\[0m / ][\e\[34m[%track% - ][%title%]\e\[0m]]|%file%]'
+  fzf_options=   command line options to be passed directly to fzf
+                 changing this will override the default options: '+s -e -i --reverse --cycle'
+                 to use the jump feature of fzf you can try '+s -e -i --reverse --cycle --bind=space:jump'
+                 this can also be overridden with the environment variable "$FZMP_FZF_OPTIONS"
 HELP
 }
 
@@ -44,7 +64,19 @@ has() {
 }
 
 fzf() {
-  command fzf -e -i --reverse --cycle --inline-info "$@"
+  command fzf ${FZMP_FZF_OPTIONS:-+s -e -i --reverse --cycle} --inline-info --ansi "$@"
+}
+
+parseConfigFile() {
+  local default_view format fzf_options
+  source "$config_file" || die 'error reading configuration file'
+  case "$default_view" in
+    playlist) filter='filterPlaylist' ;;
+    songs) filter='filterAllSongs' ;;
+    artists) filter='filterByArtist' ;;
+  esac
+  [[ -n "$format" ]] && track_format="$format"
+  [[ -n "$fzf_options" ]] && FZMP_FZF_OPTIONS="$fzf_options"
 }
 
 filterAllSongs() {
@@ -145,6 +177,9 @@ playSongs() {
 }
 
 declare filter='filterAllSongs'
+
+[[ -s "$config_file" ]] && parseConfigFile
+
 while :; do
   case "$1" in
     -A|--all) filter='filterAllSongs' ; shift ;;

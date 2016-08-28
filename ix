@@ -40,9 +40,23 @@ has() {
   done
 }
 
-usage() {
-  echo TODO
-  exit
+select-from() {
+  local cmd='command -v'
+  for a in "$@"; do
+    case "$a" in
+      -c)
+        cmd="$2"
+        shift 2
+        ;;
+    esac
+  done
+  for c in "$@"; do
+    if $cmd "${c%% *}" &> /dev/null; then
+      echo "$c"
+      return 0
+    fi
+  done
+  return 1
 }
 
 hasAccount() {
@@ -75,14 +89,16 @@ getPastes() {
 }
 
 listPastes() {
+  local highlighter
+  highlighter=$(select-from pygmentize 'highlight -q --force -O ansi')
   getPastes "$(getUserName)" | fzf \
     --inline-info --cycle \
     --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
-    --preview='p={}; curl -s "${p## *}" | highlight -q --force -O ansi' \
+    --preview="p={}; curl -s \"\${p## *}\" ${highlighter:+ | $highlighter}" \
     --bind 'space:jump' \
     --bind 'j:down' --bind 'k:up' \
     --bind 'q:abort' \
-    --bind 'Ctrl-V:execute:p={}; p="${p## *}"; less -R < <(curl -s "$p" | highlight -q --force -O ansi) > /dev/tty' \
+    --bind "Ctrl-V:execute:p={}; p=\"\${p## *}\"; less -R < <(curl -s \"\$p\" ${highlighter:+ | $highlighter}) > /dev/tty" \
     --bind 'Ctrl-E:execute:p={}; p="${p## *}"; curl -s "$p" | vipe > /dev/tty | ix -i "${p##*/}"' \
     --bind 'Ctrl-D:execute:p={}; p="${p## *}"; ix -d "${p##*/}"'
 }

@@ -74,7 +74,7 @@ install() {
   (( ${#pkgs} > 0 )) || exit
   count="${#pkgs[@]} package"
   (( ${#pkgs[@]} > 1 )) && count+='s'
-  echo "installing ${count}: ${pkgs[*]}"
+  printf "installing %s: %s\n" "$count" "${pkgs[*]}"
   $1 "${pkgs[@]}" < /dev/tty
 }
 

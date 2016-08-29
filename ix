@@ -90,7 +90,7 @@ getPastes() {
 
 listPastes() {
   local highlighter
-  highlighter=$(select-from pygmentize 'highlight -q --force -O ansi')
+  highlighter=$(select-from 'highlight -q --force -O ansi' pygmentize)
   getPastes "$(getUserName)" | fzf \
     --inline-info --cycle \
     --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \

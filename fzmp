@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-declare -r esc=$(printf '\033')
+declare -r esc=$'\033'
 declare -r c_reset="${esc}[0m"
 declare -r c_red="${esc}[31m"
 declare -r config_file="${XDG_CONFIG_DIR:-$HOME/.config}/fzmp/conf"

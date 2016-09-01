@@ -94,7 +94,7 @@ listPastes() {
   getPastes "$(getUserName)" | fzf \
     --inline-info --cycle \
     --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
-    --preview="p={}; curl -s \"\${p## *}\" ${highlighter:+ | $highlighter}" \
+    --preview="p={}; curl -s \"\${p## *}\" | head -n\$LINES ${highlighter:+ | $highlighter}" \
     --bind 'space:jump' \
     --bind 'j:down' --bind 'k:up' \
     --bind 'q:abort' \

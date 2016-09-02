@@ -97,7 +97,11 @@ filterAllSongs() {
 
 filterByArtist() {
   local choice
-  mapfile -t choice < <(mpc list artist | sort -h | fzf --expect='f1,f3,enter')
+  mapfile -t choice < <(mpc list artist |
+    sort -h |
+    fzf \
+      --preview='mpc list album artist {}' \
+      --expect='f1,f3,enter')
   (( "${#choice[@]}" > 0 )) || die
   case "${choice[0]}" in
     'f1') filterAllSongs ;;
@@ -110,9 +114,10 @@ filterByAlbumFromArtist() {
   local album artist choice
   [[ -z "$1" ]] && filterByArtist
   artist="$1"
-  mapfile -t choice < <(mpc search -f '[(%date%)\t][%album%]' artist "${artist}" |
+  mapfile -t choice < <(mpc search -f '[(%date%)\t][%album%]' artist "$artist" |
     sort -h | uniq |
     fzf --prompt="$artist > " \
+      --preview="album=\$(cut -f2 <<< {}); mpc search -f '[[[%track% - ][%title%]]|%file%]' artist \"$artist\" album \"\$album\"" \
       --expect='f1,f3,enter' \
       --bind='Ctrl-A:select-all' |
       cut -f2)

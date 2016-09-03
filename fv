@@ -14,14 +14,14 @@ die() {
 }
 
 has() {
-  local verbose=false
+  local verbose=0
   if [[ $1 == '-v' ]]; then
-    verbose=true
+    verbose=1
     shift
   fi
-  for c in "$@"; do c="${c%% *}"
+  for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      [[ "$verbose" == true ]] && err "$c not found"
+      (( verbose > 0 )) && err "$c not found"
       return 1
     fi
   done
@@ -48,9 +48,9 @@ set_cmd() {
 
 declare cmd='vim'
 declare cmdopts=()
-declare searchstr=''
-declare searchcmd=''
-declare searchopts=()
+declare search_str=''
+declare search_cmd=''
+declare search_opts=()
 declare allfiles=0
 
 while getopts "hadlc:" opt; do
@@ -59,7 +59,7 @@ while getopts "hadlc:" opt; do
     a) allfiles=1           ;;
     c) set_cmd "$OPTARG"     ;;
     d) unset detach         ;;
-    l) searchopts+=( '-l' ) ;;
+    l) search_opts+=( '-l' ) ;;
   esac
 done
 shift "$((OPTIND-1))"
@@ -68,73 +68,73 @@ has -v 'fzf' || die
 
 for c in 'ag' 'ack' 'grep'; do
   if has "$c"; then
-    searchcmd="$c"
+    search_cmd="$c"
     break
   fi
 done
 
-if [[ $searchcmd  == 'grep' ]]; then
+if [[ "$search_cmd"  == 'grep' ]]; then
   err 'grep is slow, you should strongly consider installing ag or ack'
   sleep .5
 fi
 
 if [[ -n "$1" ]]; then
   if [[ -d "$1" ]]; then
-    searchopts+=( "$1" )
+    search_opts+=( "$1" )
   else
-    searchstr="$1"
+    search_str="$1"
   fi
   shift
 fi
 
-case "$searchcmd" in
+case "$search_cmd" in
   'ag')
-    searchopts+=( '--color' )
+    search_opts+=( '--color' )
     if [[ "$allfiles" == 1 ]]; then
-      searchopts+=( '-u' '--hidden' )
+      search_opts+=( '-u' '--hidden' )
     fi
-    if [[ "$searchstr" == '' ]]; then
-      searchopts+=( '-l' )
+    if [[ "$search_str" == '' ]]; then
+      search_opts+=( '-l' )
     fi
     ;;
   'ack')
-    if [[ "$searchstr" == '' ]]; then
+    if [[ "$search_str" == '' ]]; then
       if [[ "$allfiles" == 0 ]]; then
-        searchopts+=( '-g' '^[^\.]' )
+        search_opts+=( '-g' '^[^\.]' )
       else
-        searchopts+=( '-f' )
+        search_opts+=( '-f' )
       fi
     else
-      searchopts+=( '-l' )
-    #   searchopts+=( '--match' )
+      search_opts+=( '-l' )
+    #   search_opts+=( '--match' )
     fi
     ;;
   'grep')
-    searchopts+=( '-r' '-I' )
+    search_opts+=( '-r' '-I' )
     if [[ "$allfiles" == 0 ]]; then
-      searchopts+=( '--exclude-dir=bower_components' )
-      searchopts+=( '--exclude-dir=node_modules' )
-      searchopts+=( '--exclude-dir=jspm_packages' )
-      searchopts+=( '--exclude-dir=.cvs' )
-      searchopts+=( '--exclude-dir=.git' )
-      searchopts+=( '--exclude-dir=.hg' )
-      searchopts+=( '--exclude-dir=.svn' )
+      search_opts+=( '--exclude-dir=bower_components' )
+      search_opts+=( '--exclude-dir=node_modules' )
+      search_opts+=( '--exclude-dir=jspm_packages' )
+      search_opts+=( '--exclude-dir=.cvs' )
+      search_opts+=( '--exclude-dir=.git' )
+      search_opts+=( '--exclude-dir=.hg' )
+      search_opts+=( '--exclude-dir=.svn' )
     fi
-    if [[ "$searchstr" == '' ]]; then
-      searchopts+=( '' )
+    if [[ "$search_str" == '' ]]; then
+      search_opts+=( '' )
     fi
     ;;
 esac
 
-if [[ "$searchstr" != '' ]]; then
-  searchopts+=( "$searchstr" )
+if [[ "$search_str" != '' ]]; then
+  search_opts+=( "$search_str" )
 fi
 
-choices=$($searchcmd "${searchopts[@]}" 2> /dev/null |
+choices=$($search_cmd "${search_opts[@]}" 2> /dev/null |
   fzf --ansi --cycle --multi) || exit 1
 
-if [[ "$searchstr" != '' ]]; then
-  if [[ $searchcmd == 'ag' ]]; then
+if [[ "$search_str" != '' ]]; then
+  if [[ $search_cmd == 'ag' ]]; then
     choices=$(cut -d: -f1 <<< "$choices")
   fi
 fi

@@ -27,14 +27,14 @@ die() {
 }
 
 has() {
-  local verbose=false
+  local verbose=0
   if [[ $1 == '-v' ]]; then
-    verbose=true
+    verbose=1
     shift
   fi
-  for c in "$@"; do c="${c%% *}"
+  for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      [[ "$verbose" == true ]] && err "$c not found"
+      (( verbose > 0 )) && err "$c not found"
       return 1
     fi
   done
@@ -42,7 +42,7 @@ has() {
 
 select-from() {
   local cmd='command -v'
-  for a in "$@"; do
+  for a; do
     case "$a" in
       -c)
         cmd="$2"
@@ -50,7 +50,7 @@ select-from() {
         ;;
     esac
   done
-  for c in "$@"; do
+  for c; do
     if $cmd "${c%% *}" &> /dev/null; then
       echo "$c"
       return 0

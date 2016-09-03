@@ -24,14 +24,14 @@ HELP
 }
 
 has() {
-  local verbose=false
+  local verbose=0
   if [[ $1 == '-v' ]]; then
-    verbose=true
+    verbose=1
     shift
   fi
-  for c in "$@"; do c="${c%% *}"
+  for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      [[ "$verbose" == true ]] && err "$c not found"
+      (( verbose > 0 )) && err "$c not found"
       return 1
     fi
   done
@@ -51,7 +51,7 @@ if (( $# < 1 )); then
   die
 fi
 
-for a in "$@"; do
+for a; do
   host="${a%:*}"
   path="${a##*:}"
   domains+=( ["$a"]="$host" )

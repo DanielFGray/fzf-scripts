@@ -29,22 +29,22 @@ die() {
 }
 
 has() {
-  local verbose=false
+  local verbose=0
   if [[ $1 == '-v' ]]; then
-    verbose=true
+    verbose=1
     shift
   fi
-  for c in "$@"; do c="${c%% *}"
+  for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      [[ "$verbose" == true ]] && err "$c not found"
+      (( "$verbose" > 0 )) && err "$c not found"
       return 1
     fi
   done
 }
 
-select-from() {
+select_from() {
   local cmd='command -v'
-  for a in "$@"; do
+  for a; do
     case "$a" in
       -c)
         cmd="$2"
@@ -52,7 +52,7 @@ select-from() {
         ;;
     esac
   done
-  for c in "$@"; do
+  for c; do
     if $cmd "${c%% *}" &> /dev/null; then
       echo "$c"
       return 0
@@ -86,13 +86,13 @@ debian() {
     < <(apt-cache search '' | sort |
       sed -u -r "s|^([^ ]+)|${c_green}\1${c_reset}|") |
     cut -d' ' -f1 |
-    install "sudo $(select-from 'apt' 'aptitude' 'apt-get') install"
+    install "sudo $(select_from 'apt' 'aptitude' 'apt-get') install"
 }
 
 arch() {
   local search packages
   search='pacman'
-  [[ -n "$1" ]] && search=$(select-from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
+  [[ -n "$1" ]] && search=$(select_from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
   packages=$(fzf --bind="Ctrl-X:execute[
       p=\$(cut -d' ' -f2 <<< {});
       less < <($search -Si \$p) > /dev/tty]" \
@@ -111,11 +111,11 @@ arch() {
 }
 
 void() {
-  local packagelist packagename='{ sub(/-[^\-]*$/, "", $2); print $2 }'
-  packagelist=$(xbps-query -Rs '' | sort)
+  local package_list packagename='{ sub(/-[^\-]*$/, "", $2); print $2 }'
+  package_list=$(xbps-query -Rs '' | sort)
   fzf --bind="Ctrl-X:execute[
       p=\$(awk \"$packagename\" <<< {});
-      less < <(xbps-query -Rx \$p) > /dev/tty]" <<< "$packagelist" |
+      less < <(xbps-query -Rx \$p) > /dev/tty]" <<< "$package_list" |
     awk "$packagename" |
     install 'xbps-install -S'
 }

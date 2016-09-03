@@ -16,14 +16,14 @@ die() {
 }
 
 has() {
-  local verbose=false
+  local verbose=0
   if [[ $1 == '-v' ]]; then
-    verbose=true
+    verbose=1
     shift
   fi
-  for c in "$@"; do c="${c%% *}"
+  for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      [[ "$verbose" == true ]] && err "$c not found"
+      (( verbose > 0 )) && err "$c not found"
       return 1
     fi
   done
@@ -53,25 +53,25 @@ pick_files() {
 }
 
 pick_destination() {
-  local cwd browsedir browseinfo query dirs
+  local cwd browse_dir browse_info query dirs
   cwd=$(pwd)
-  while [[ "$browsedir" != "$cwd" ]]; do
+  while [[ "$browse_dir" != "$cwd" ]]; do
     dirs=$( (echo '..'; find -maxdepth 1 -type d 2> /dev/null ) |
       sed 's|./||' |
       sort -h)
-    mapfile -t browseinfo < <(
+    mapfile -t browse_info < <(
       fzf --print-query \
       --history="${HOME}/.cache/fzmv_history" \
       --header="${errors:-move files here}" <<< "$dirs")
-    query=${browseinfo[0]}
-    browsedir=${browseinfo[1]}
-    [[ -d "$query" ]] && browsedir="$query"
-    [[ ! -d "$browsedir" ]] && return 1
-    if [[ "$browsedir" == '.' && $(realpath "$browsedir") != "$cwd" ]]; then
-      realpath "$browsedir"
+    query=${browse_info[0]}
+    browse_dir=${browse_info[1]}
+    [[ -d "$query" ]] && browse_dir="$query"
+    [[ ! -d "$browse_dir" ]] && return 1
+    if [[ "$browse_dir" == '.' && $(realpath "$browse_dir") != "$cwd" ]]; then
+      realpath "$browse_dir"
       break
     else
-      cd "$browsedir" || die
+      cd "$browse_dir" || die
       continue
     fi
   done
@@ -80,7 +80,7 @@ pick_destination() {
 while (( $# > 0 )); do
   case $1 in
     -t|--test) dryrun=true ;;
-    -v|--verbose) verbose=true ;;
+    -v|--verbose) verbose=1 ;;
   esac
   shift
 done

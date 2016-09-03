@@ -38,7 +38,7 @@ fuzzy file filtering and command executing
 HELP
 }
 
-setCmd() {
+set_cmd() {
    if has "$1"; then
     cmd="$1"
   else
@@ -57,7 +57,7 @@ while getopts "hadlc:" opt; do
   case "$opt" in
     h) usage; exit 0        ;;
     a) allfiles=1           ;;
-    c) setCmd "$OPTARG"     ;;
+    c) set_cmd "$OPTARG"     ;;
     d) unset detach         ;;
     l) searchopts+=( '-l' ) ;;
   esac

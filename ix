@@ -59,11 +59,11 @@ select-from() {
   return 1
 }
 
-hasAccount() {
+has_account() {
   grep -qF 'ix.io' ~/.netrc
 }
 
-createAccount() {
+create_account() {
   echo "It seems you don't have a ~/.netrc with ix.io in it. Let's make one!"
   read -r -p 'enter a username: ' username
   read -rs -p 'enter a password (this will be hashed with sha256sum): ' password
@@ -74,11 +74,11 @@ createAccount() {
   echo "$username"
 }
 
-getUserName() {
+get_user_name() {
   awk '"ix.io"==$2{print $4}' ~/.netrc
 }
 
-getPastes() {
+get_pastes() {
   curl -s "http://ix.io/user/$1" |
     grep -A1 -P '\<a href="\/[a-zA-Z0-9]+"\>' |
     awk -F'--' '
@@ -88,10 +88,10 @@ getPastes() {
     '
 }
 
-listPastes() {
+list_pastes() {
   local highlighter
   highlighter=$(select-from 'highlight -q --force -O ansi' pygmentize)
-  getPastes "$(getUserName)" | fzf \
+  get_pastes "$(get_user_name)" | fzf \
     --inline-info --cycle \
     --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
     --preview="p={}; curl -s \"\${p## *}\" | head -n\$LINES ${highlighter:+ | $highlighter}" \
@@ -105,7 +105,7 @@ listPastes() {
 
 has -v curl || die
 
-hasAccount || createAccount
+has_account || create_account
 
 [[ -e ~/.netrc ]] && opts+=( '-n' )
 
@@ -115,7 +115,7 @@ while getopts ":hld:i:n:" x; do
     d) curl "${opts[@]}" -X DELETE "ix.io/$OPTARG"; exit ;;
     l)
       if [[ -z "$OPTARG" && -e ~/.netrc ]]; then
-        listPastes | awk '{print $2}' | tee /dev/tty | xclip
+        list_pastes | awk '{print $2}' | tee /dev/tty | xclip
       else
         die 'no netrc found'
       fi

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
-declare esc=$'\033'
-declare c_reset="${esc}[0m"
-declare c_red="${esc}[31m"
+declare -r esc=$'\033'
+declare -r c_reset="${esc}[0m"
+declare -r c_red="${esc}[31m"
 declare OPTIND
 declare opts=()
 declare id
 
 usage() {
-  more <<'HELP'
+  LESS=-FEXR less <<'HELP'
 ix [OPTIONS]
 
 -l             list all pastes, uses fzf for interactive use
@@ -40,7 +40,7 @@ has() {
   done
 }
 
-select-from() {
+select_from() {
   local cmd='command -v'
   for a; do
     case "$a" in
@@ -90,7 +90,7 @@ get_pastes() {
 
 list_pastes() {
   local highlighter
-  highlighter=$(select-from 'highlight -q --force -O ansi' pygmentize)
+  highlighter=$(select_from 'highlight -q --force -O ansi' pygmentize)
   get_pastes "$(get_user_name)" | fzf \
     --inline-info --cycle \
     --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \

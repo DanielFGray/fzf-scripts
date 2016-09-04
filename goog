@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-declare esc=$'\033'
-declare c_reset="${esc}[0m"
-declare c_red="${esc}[31m"
+declare -r esc=$'\033'
+declare -r c_reset="${esc}[0m"
+declare -r c_red="${esc}[31m"
 
 err() {
   printf "${c_red}%s${c_reset}\n" "$*" >&2

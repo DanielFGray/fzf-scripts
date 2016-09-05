@@ -32,10 +32,10 @@ openurl() {
   local browser
   case "$url" in
     *youtube.com*|*youtu.be*|*vimeo.com*)
-      browser=$(select-from \
+      browser=$(select_from \
         mpv mplayer2 mplayer) ;;
     *)
-      browser=$(select-from \
+      browser=$(select_from \
         -c "pgrep -u $USER -i" \
         firefox chromium-browser chrome)
       [[ ! $browser ]] && browser='w3m'

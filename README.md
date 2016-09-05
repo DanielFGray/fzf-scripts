@@ -54,6 +54,7 @@ List and connect to wifi networks
 
 Currently there's no installation script, but if you clone the repo you can easily symlink the scripts here with something like:
 
+    cd /path/to/repo/fzf-scripts
     find -maxdepth 1 -executable -type f -exec ln -s -t $HOME/.local/bin /path/to/repo/fzf-scripts/{} \;
 
 # Legal

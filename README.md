@@ -50,6 +50,12 @@ List and connect to wifi networks
 
 *depends on `nmcli`*
 
+# Install
+
+Currently there's no installation script, but if you clone the repo you can easily symlink the scripts here with something like:
+
+    find -maxdepth 1 -executable -type f -exec ln -s -t $HOME/.local/bin /path/to/repo/fzf-scripts/{} \;
+
 # Legal
 Copyright (C) 2016 Daniel F Gray <DanielFGray@gmail.com>
 

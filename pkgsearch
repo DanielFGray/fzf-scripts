@@ -80,7 +80,7 @@ install() {
 
 debian() {
   fzf --bind='Ctrl-X:toggle-preview' \
-      --preview='p={}; apt-cache show \${p%% *}' \
+      --preview='p={}; apt-cache show ${p%% *}' \
       --preview-window='up:hidden' \
       --query="$1" \
     < <(apt-cache search '' | sort |

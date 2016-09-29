@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
-declare esc=$(printf '\033')
-declare c_reset="${esc}[0m"
-declare c_red="${esc}[31m"
+declare -r esc=$'\033'
+declare -r c_reset="${esc}[0m"
+declare -r c_red="${esc}[31m"
 declare OPTIND
 declare opts=()
 declare id
 
 usage() {
-  more <<'HELP'
+  LESS=-FEXR less <<'HELP'
 ix [OPTIONS]
 
 -l             list all pastes, uses fzf for interactive use
@@ -27,22 +27,22 @@ die() {
 }
 
 has() {
-  local verbose=false
+  local verbose=0
   if [[ $1 == '-v' ]]; then
-    verbose=true
+    verbose=1
     shift
   fi
-  for c in "$@"; do c="${c%% *}"
+  for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      [[ "$verbose" == true ]] && err "$c not found"
+      (( verbose > 0 )) && err "$c not found"
       return 1
     fi
   done
 }
 
-select-from() {
+select_from() {
   local cmd='command -v'
-  for a in "$@"; do
+  for a; do
     case "$a" in
       -c)
         cmd="$2"
@@ -50,7 +50,7 @@ select-from() {
         ;;
     esac
   done
-  for c in "$@"; do
+  for c; do
     if $cmd "${c%% *}" &> /dev/null; then
       echo "$c"
       return 0
@@ -59,11 +59,11 @@ select-from() {
   return 1
 }
 
-hasAccount() {
+has_account() {
   grep -qF 'ix.io' ~/.netrc
 }
 
-createAccount() {
+create_account() {
   echo "It seems you don't have a ~/.netrc with ix.io in it. Let's make one!"
   read -r -p 'enter a username: ' username
   read -rs -p 'enter a password (this will be hashed with sha256sum): ' password
@@ -74,11 +74,11 @@ createAccount() {
   echo "$username"
 }
 
-getUserName() {
+get_user_name() {
   awk '"ix.io"==$2{print $4}' ~/.netrc
 }
 
-getPastes() {
+get_pastes() {
   curl -s "http://ix.io/user/$1" |
     grep -A1 -P '\<a href="\/[a-zA-Z0-9]+"\>' |
     awk -F'--' '
@@ -88,13 +88,13 @@ getPastes() {
     '
 }
 
-listPastes() {
+list_pastes() {
   local highlighter
-  highlighter=$(select-from pygmentize 'highlight -q --force -O ansi')
-  getPastes "$(getUserName)" | fzf \
+  highlighter=$(select_from 'highlight -q --force -O ansi' pygmentize)
+  get_pastes "$(get_user_name)" | fzf \
     --inline-info --cycle \
     --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
-    --preview="p={}; curl -s \"\${p## *}\" ${highlighter:+ | $highlighter}" \
+    --preview="p={}; curl -s \"\${p## *}\" | head -n\$LINES ${highlighter:+ | $highlighter}" \
     --bind 'space:jump' \
     --bind 'j:down' --bind 'k:up' \
     --bind 'q:abort' \
@@ -105,7 +105,7 @@ listPastes() {
 
 has -v curl || die
 
-hasAccount || createAccount
+has_account || create_account
 
 [[ -e ~/.netrc ]] && opts+=( '-n' )
 
@@ -115,7 +115,7 @@ while getopts ":hld:i:n:" x; do
     d) curl "${opts[@]}" -X DELETE "ix.io/$OPTARG"; exit ;;
     l)
       if [[ -z "$OPTARG" && -e ~/.netrc ]]; then
-        listPastes | awk '{print $2}' | tee /dev/tty | xclip
+        list_pastes | awk '{print $2}' | tee /dev/tty | xclip
       else
         die 'no netrc found'
       fi

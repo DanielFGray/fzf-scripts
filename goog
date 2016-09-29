@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-declare esc=$(printf '\033')
-declare c_reset="${esc}[0m"
-declare c_red="${esc}[31m"
+declare -r esc=$'\033'
+declare -r c_reset="${esc}[0m"
+declare -r c_red="${esc}[31m"
 
 err() {
   printf "${c_red}%s${c_reset}\n" "$*" >&2
@@ -14,14 +14,14 @@ die() {
 }
 
 has() {
-  local verbose=false
+  local verbose=0
   if [[ $1 == '-v' ]]; then
-    verbose=true
+    verbose=1
     shift
   fi
-  for c in "$@"; do c="${c%% *}"
+  for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      [[ "$verbose" == true ]] && err "$c not found"
+      (( verbose > 0 )) && err "$c not found"
       return 1
     fi
   done
@@ -32,10 +32,10 @@ openurl() {
   local browser
   case "$url" in
     *youtube.com*|*youtu.be*|*vimeo.com*)
-      browser=$(select-from \
+      browser=$(select_from \
         mpv mplayer2 mplayer) ;;
     *)
-      browser=$(select-from \
+      browser=$(select_from \
         -c "pgrep -u $USER -i" \
         firefox chromium-browser chrome)
       [[ ! $browser ]] && browser='w3m'

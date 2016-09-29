@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-declare esc=$(printf '\033')
-declare c_reset="${esc}[0m"
-declare c_red="${esc}[31m"
-declare c_green="${esc}[32m"
-declare c_blue="${esc}[34m"
+declare -r esc=$'\033'
+declare -r c_reset="${esc}[0m"
+declare -r c_red="${esc}[31m"
+declare -r c_green="${esc}[32m"
+declare -r c_blue="${esc}[34m"
 declare reverse
 
 usage() {
@@ -29,22 +29,22 @@ die() {
 }
 
 has() {
-  local verbose=false
+  local verbose=0
   if [[ $1 == '-v' ]]; then
-    verbose=true
+    verbose=1
     shift
   fi
-  for c in "$@"; do c="${c%% *}"
+  for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      [[ "$verbose" == true ]] && err "$c not found"
+      (( "$verbose" > 0 )) && err "$c not found"
       return 1
     fi
   done
 }
 
-select-from() {
+select_from() {
   local cmd='command -v'
-  for a in "$@"; do
+  for a; do
     case "$a" in
       -c)
         cmd="$2"
@@ -52,7 +52,7 @@ select-from() {
         ;;
     esac
   done
-  for c in "$@"; do
+  for c; do
     if $cmd "${c%% *}" &> /dev/null; then
       echo "$c"
       return 0
@@ -74,7 +74,7 @@ install() {
   (( ${#pkgs} > 0 )) || exit
   count="${#pkgs[@]} package"
   (( ${#pkgs[@]} > 1 )) && count+='s'
-  echo "installing ${count}: ${pkgs[*]}"
+  printf "installing %s: %s\n" "$count" "${pkgs[*]}"
   $1 "${pkgs[@]}" < /dev/tty
 }
 
@@ -86,7 +86,7 @@ debian() {
     < <(apt-cache search '' | sort |
       sed -u -r "s|^([^ ]+)|${c_green}\1${c_reset}|") |
     cut -d' ' -f1 |
-    install "sudo $(select-from 'apt' 'aptitude' 'apt-get') install"
+    install "sudo $(select_from 'apt' 'aptitude' 'apt-get') install"
 }
 
 arch() {

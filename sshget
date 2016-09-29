@@ -1,19 +1,13 @@
 #!/usr/bin/env bash
 
+declare -r esc=$'\033'
+declare -r c_reset="${esc}[0m"
+declare -r c_red="${esc}[31m"
+
 declare -r fifo='/tmp/sshget.fifo'
 declare -A domains=()
 declare -A paths=()
 declare -a files=()
-
-declare esc=$(printf '\033')
-declare c_reset="${esc}[0m"
-declare c_red="${esc}[31m"
-
-usage() {
-  more <<'HELP'
-sshget user@host1:/path/to/search user@host2:/path/to/search
-HELP
-}
 
 err() {
   printf "${c_red}%s${c_reset}\n" "$*" >&2
@@ -23,15 +17,21 @@ die() {
   exit 1
 }
 
+usage() {
+  LESS=-FEXR less <<'HELP'
+sshget <user@host1:/path/to/search ...>
+HELP
+}
+
 has() {
-  local verbose=false
+  local verbose=0
   if [[ $1 == '-v' ]]; then
-    verbose=true
+    verbose=1
     shift
   fi
-  for c in "$@"; do c="${c%% *}"
+  for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      [[ "$verbose" == true ]] && err "$c not found"
+      (( verbose > 0 )) && err "$c not found"
       return 1
     fi
   done
@@ -46,8 +46,13 @@ trap cleanup SIGHUP SIGINT SIGTERM
 
 mkfifo "$fifo"
 
-for a in "$@"; do
-  host="${a%%:*}"
+if (( $# < 1 )); then
+  usage
+  die
+fi
+
+for a; do
+  host="${a%:*}"
   path="${a##*:}"
   domains+=( ["$a"]="$host" )
   paths+=( ["$a"]="$path" )
@@ -55,7 +60,7 @@ for a in "$@"; do
 done
 
 for s in "${!domains[@]}"; do
-  ssh "${domains[$s]}" "find ${paths[$s]}" | sed -r "s|^(.*)|${domains[$s]}:\"\1\"|" >> "$fifo" &
+  ssh "${domains[$s]}" "find ${paths[$s]}" | sed -r "s|^|${domains[$s]}:|" >> "$fifo" &
 done
 
 mapfile -t files < <( fzf -e --inline-info --multi --cycle < "$fifo" )

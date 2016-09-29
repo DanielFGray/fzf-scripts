@@ -110,16 +110,6 @@ arch() {
   install "$search -S" <<< "$packages"
 }
 
-void() {
-  local packagelist packagename='{ sub(/-[^\-]*$/, "", $2); print $2 }'
-  packagelist=$(xbps-query -Rs '' | sort)
-  fzf --bind="Ctrl-X:execute[
-      p=\$(awk \"$packagename\" <<< {});
-      less < <(xbps-query -Rx \$p) > /dev/tty]" <<< "$packagelist" |
-    awk "$packagename" |
-    install 'xbps-install -S'
-}
-
 while true; do
   case "$1" in
     -r|--reverse)  reverse=1  ; shift ;;

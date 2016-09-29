@@ -79,9 +79,9 @@ install() {
 }
 
 debian() {
-  fzf --bind="Ctrl-X:execute[
-        p=\$(cut -d' ' -f1 <<< {});
-        less < <(apt-cache show \$p) > /dev/tty]" \
+  fzf --bind='Ctrl-X:toggle-preview' \
+        --preview='p={}; apt-cache show \${p%% *}' \
+        --preview-window='top:hidden' \
       --query="$1" \
     < <(apt-cache search '' | sort |
       sed -u -r "s|^([^ ]+)|${c_green}\1${c_reset}|") |
@@ -93,9 +93,9 @@ arch() {
   local search packages
   search='pacman'
   [[ -n "$1" ]] && search=$(select-from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
-  packages=$(fzf --bind="Ctrl-X:execute[
-      p=\$(cut -d' ' -f2 <<< {});
-      less < <($search -Si \$p) > /dev/tty]" \
+  packages=$(fzf --bind='Ctrl-X:toggle-preview' \
+      --preview="p=\$(cut -d' ' -f2 <<< {}); $search -Si \$p" \
+      --preview-window='top:hidden' \
     < <( $search -Ss "$1" |
       gawk '{
         getline descr;

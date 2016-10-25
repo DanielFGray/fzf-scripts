@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 
 declare -r esc=$'\033'
-declare -r c_reset="${esc}[0m"
-declare -r c_red="${esc}[31m"
-declare -r c_green="${esc}[32m"
-declare -r c_blue="${esc}[34m"
+declare -r c_red=$(tput setaf 1)
+declare -r c_blue=$(tput setaf 4)
+declare -r c_reset=$(tput sgr0)
+declare -a config_err
+declare -r config_dir="${XDG_CONFIG_DIR:-$HOME/.config}/pkgsearch"
+declare -r config_file="${config_dir}/conf"
 declare reverse
+declare preview_pos='right:hidden'
 
 usage() {
   LESS=-FEXR less <<HELP
@@ -13,6 +16,9 @@ pkgsearch [options] [query]
   lists and installs packages from your distro's repositories
 
   -r --reverse    reverse the orientation of the layout
+  -p --preview    options for the preview window
+                  is passed directly to fzf --preview-window
+                  defaults to 'right:hidden'
   -h --help       show this help
 
   without any arguments pkgsearch will list all available packages from your cache
@@ -30,7 +36,7 @@ die() {
 
 has() {
   local verbose=0
-  if [[ $1 == '-v' ]]; then
+  if [[ $1 = '-v' ]]; then
     verbose=1
     shift
   fi
@@ -64,8 +70,30 @@ select_from() {
 fzf() {
   command fzf -e +s --multi --cycle --ansi \
     ${reverse:+--reverse} \
+    --bind='Ctrl-X:toggle-preview' \
+    --preview-window="$preview_pos" \
     --no-hscroll --inline-info \
     --header='tab to select multiple packages, Ctrl-X for more info on a package' "$@"
+}
+
+parse_config_file() {
+  local line k v nr=0
+  config_err=()
+  while IFS= read -r line; do
+    (( ++nr ))
+    [[ -z "$line" || "$line" = '#'* ]] && continue
+    k="${line%% *}"
+    v="${line#* }"
+    if [[ -z "$v" ]]; then
+      config_err+=( "missing value for \"$k\" in config file on line $nr" )
+      continue
+    fi
+    case "$k" in
+      reverse) [[ "$v" = 'true' ]] && reverse="1" ;;
+      preview) preview_pos="$v" ;;
+      *) config_err+=( "unknown key \"$k\" in config file on line $nr" )
+    esac
+  done
 }
 
 install() {
@@ -79,9 +107,7 @@ install() {
 }
 
 debian() {
-  fzf --bind='Ctrl-X:toggle-preview' \
-      --preview='p={}; apt-cache show ${p%% *}' \
-      --preview-window='up:hidden' \
+  fzf --preview='p={}; apt-cache show ${p%% *}' \
       --query="$1" \
     < <(apt-cache search '' | sort |
       sed -u -r "s|^([^ ]+)|${c_green}\1${c_reset}|") |
@@ -93,9 +119,7 @@ arch() {
   local search packages
   search='pacman'
   [[ -n "$1" ]] && search=$(select_from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
-  packages=$(fzf --bind='Ctrl-X:toggle-preview' \
-      --preview="p=\$(cut -d' ' -f2 <<< {}); $search -Si \$p" \
-      --preview-window='up:hidden' \
+  packages=$(fzf --preview="p=\$(cut -d' ' -f2 <<< {}); $search -Si \$p" \
     < <( $search -Ss "$1" |
       gawk '{
         getline descr;
@@ -106,16 +130,14 @@ arch() {
         print repo, name, info, descr;
       }' blue="$c_blue" green="$c_green" reset="$c_reset"
     ) | cut -d' ' -f2)
-  [[ "$search" == "pacman" ]] && search="sudo pacman"
+  [[ "$search" = "pacman" ]] && search="sudo pacman"
   install "$search -S" <<< "$packages"
 }
 
 void() {
-  local package_list packagename='{sub(/-[^\-]*$/, "", $2); print $2}'
+  local package_list packagename='{ sub(/-[^\-]*$/, "", $2); print $2 }'
   package_list=$(xbps-query -Rs '' | sort)
-  fzf --bind='Ctrl-X:toggle-preview' \
-      --preview="p=\$(awk \"$packagename\" <<< {}); xbps-query -Rx \$p" \
-      --preview-window='up:hidden' \
+  fzf --preview="p=\$(awk \"$packagename\" <<< {}); xbps-query -Rx \$p" \
       --query="$1" <<< "$package_list" |
     awk "$packagename" |
     install 'xbps-install -S'
@@ -132,8 +154,18 @@ fedora() {
 
 while true; do
   case "$1" in
-    -r|--reverse)  reverse=1  ; shift ;;
-    -h|--help)     usage      ; exit  ;;
+    -r|--reverse)
+      reverse=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit
+      ;;
+    -p|--preview)
+      preview_pos="$2"
+      shift 2
+      ;;
     *) break
   esac
 done
@@ -141,7 +173,7 @@ done
 has -v fzf gawk || die
 
 request="$*"
-osrelease=$(awk -F'=' '/^NAME/{gsub(/"/, "", $2); print tolower($2)}' /etc/os-release)
+osrelease=$(awk -F'=' '"NAME" == $1 { gsub("\"", "", $2); print tolower($2); }' /etc/os-release)
 case "${osrelease%% *}" in
   debian|ubuntu) debian "$request" ;;
   arch) arch "$request" ;;

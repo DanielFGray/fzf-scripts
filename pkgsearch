@@ -121,6 +121,15 @@ void() {
     install 'xbps-install -S'
 }
 
+fedora() {
+  fzf --preview='p={}; p="${p%% *}"; dnf -q info "${p%.*}"' \
+    < <(dnf -qC repoquery --qf "${c_green}%{name} ${c_reset}%{version} - %{summary}" \*) |
+    awk '{ package=$1; sub(/\.\S+/, "", package); print package }' |
+    install 'sudo dnf install'
+}
+
+[[ -s "$config_file" ]] && parse_config_file < "$config_file"
+
 while true; do
   case "$1" in
     -r|--reverse)  reverse=1  ; shift ;;
@@ -137,4 +146,6 @@ case "${osrelease%% *}" in
   debian|ubuntu) debian "$request" ;;
   arch) arch "$request" ;;
   void) void "$request" ;;
+  fedora) fedora "$request" ;;
+  *) die 'unknown distro :(' ;;
 esac

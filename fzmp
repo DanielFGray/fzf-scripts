@@ -4,8 +4,10 @@ declare -r esc=$'\033'
 declare -r c_reset="${esc}[0m"
 declare -r c_red="${esc}[31m"
 declare -r config_file="${XDG_CONFIG_DIR:-$HOME/.config}/fzmp/conf"
+declare verbose
 declare default_filter='filter_all_songs'
 declare track_format='[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
+declare -a config_err
 
 usage() {
   LESS=-FEXR less <<'HELP'
@@ -19,18 +21,19 @@ fzmp [OPTIONS]
                    >   go to the next song in the playlist
                    <   go to the previous song in the playlist
                    C-d delete the selected songs from the playlist
+    -v --verbose   print errors when parsing the config file
     -h --help      print this help
 
   CONFIGURATION:
-    a configuration file can be defined at $XDG_CONFIG_DIR (defaults to ~/.config)
-    configuration options must be defined in the format of key=value
-    the configuration file reads the following variables:
+    A configuration file can be defined at $XDG_CONFIG_DIR (defaults to ~/.config)
+    If a line begins with '#' it is treated as a comment and ignored
+    The configuration file reads the following options:
 
-    default_view=      must be 'artists' 'songs' or 'playlist'
-    full_song_format=  a format string to be passed directly to `mpc format -f` in 'playlist' and 'all' views
+    default_view       must be 'artists' 'songs' or 'playlist'
+    full_song_format   a format string to be passed directly to `mpc format -f` in 'playlist' and 'all' views
                        defaults to '[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
                        for colorized output try: '[[[\e\[32m%artist%\e\[0m / ][\e\[31m[(%date%) ]%album%\e\[0m / ][\e\[34m[%track% - ][%title%]\e\[0m]]|%file%]'
-    fzf_options=       command line options to be passed directly to fzf
+    fzf_options        command line options to be passed directly to fzf
                        changing this will override the default options: '+s -e -i --reverse --cycle'
                        to use the jump feature of fzf you can try '+s -e -i --reverse --cycle --bind=`:jump'
                        this can also be overridden with the environment variable FZMP_FZF_OPTIONS
@@ -69,15 +72,33 @@ fzf() {
 }
 
 parse_config_file() {
-  local default_view full_song_format fzf_options
-  source "$config_file"
-  [[ -v default_view ]] && case "$default_view" in
-    playlist) default_filter='filter_playlist' ;;
-    songs) default_filter='filter_all_songs' ;;
-    artists) default_filter='filter_by_artist' ;;
-  esac
-  [[ -v full_song_format ]] && track_format="$full_song_format"
-  [[ ! -v FZMP_FZF_OPTIONS && -v fzf_options ]] && FZMP_FZF_OPTIONS="$fzf_options"
+  local line key val nr=0
+  while IFS= read -r line; do
+    (( ++nr ))
+    [[ -z "$line" || "$line" = '#'* ]] && continue
+    read -r key <<< "${line%% *}"
+    read -r val <<< "${line#* }"
+    if [[ -z "$val" ]]; then
+      config_err+=( "missing value for \"$key\" in config file on line $nr" )
+      continue
+    fi
+    case "$key" in
+      full_song_format) track_format="$val" ;;
+      fzf_options) [[ ! -v FZMP_FZF_OPTIONS ]] && FZMP_FZF_OPTIONS="$val" ;;
+      default_view)
+        if [[ "$val" =~ playlist|songs|artists ]]; then
+          case "$val" in
+            playlist) default_filter='filter_by_playlist' ;;
+            songs) default_filter='filter_all_songs' ;;
+            artists) default_filter='filter_by_artist' ;;
+          esac
+        else
+          config_err+=( "unknown format \"$val\" in config file on line $nr" )
+        fi
+        ;;
+      *) config_err+=( "unknown key \"$key\" in config file on line $nr" )
+    esac
+  done
 }
 
 filter_all_songs() {
@@ -90,7 +111,7 @@ filter_all_songs() {
     cut -f1)
   case "${choice[0]}" in
     'f2') filter_by_artist ;;
-    'f3') filter_playlist ;;
+    'f3') filter_by_playlist ;;
     'enter') printf '%s\n' "${choice[@]:1}" | play_songs ;;
   esac
 }
@@ -102,11 +123,11 @@ filter_by_artist() {
     fzf \
       --preview='mpc list album artist {}' \
       --expect='f1,f3,enter')
-  (( "${#choice[@]}" > 0 )) || die
+  (( ${#choice[@]} > 0 )) || die
   case "${choice[0]}" in
-    'f1') filter_all_songs ;;
-    'f3') filter_playlist ;;
-    'enter') filter_by_album_from_artist "${choice[1]}" ;;
+    f1) filter_all_songs ;;
+    f3) filter_by_playlist ;;
+    enter) filter_by_album_from_artist "${choice[1]}" ;;
   esac
 }
 
@@ -123,7 +144,7 @@ filter_by_album_from_artist() {
       cut -f2)
   case "${choice[0]}" in
     'f1') filter_all_songs ;;
-    'f3') filter_playlist ;;
+    'f3') filter_by_playlist ;;
     'enter') filter_songs_from_album "$artist" "${choice[1]}" ;;
     *) filter_by_artist ;;
   esac
@@ -144,14 +165,14 @@ filter_songs_from_album() {
     cut -f1)
   case "${choice[0]}" in
     'f1') filter_all_songs ;;
-    'f3') filter_playlist ;;
+    'f3') filter_by_playlist ;;
     'enter') printf '%s\n' "${choice[@]:1}" | play_songs ;;
     *) filter_by_album_from_artist "$artist" ;;
   esac
 }
 
-filter_playlist() {
-  local choice 
+filter_by_playlist() {
+  local choice
   current_song=$(mpc current -f "$track_format")
   mapfile -t choice < <(mpc playlist -f "%position%\t$track_format" |
     fzf --prompt='playlist > ' \
@@ -164,10 +185,10 @@ filter_playlist() {
   case "${choice[0]}" in
     'f1') filter_all_songs ;;
     'f2') filter_by_artist ;;
-    '>') mpc -q next ; filter_playlist ;;
-    '<') mpc -q prev ; filter_playlist ;;
-    'ctrl-d') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[@]:1}" ; filter_playlist ;;
-    'enter') [[ -n "${choice[1]}" ]] && mpc -q play "${choice[@]:1}" ; filter_playlist ;;
+    '>') mpc -q next; filter_by_playlist ;;
+    '<') mpc -q prev; filter_by_playlist ;;
+    'ctrl-d') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[@]:1}"; filter_by_playlist ;;
+    'enter') [[ -n "${choice[1]}" ]] && mpc -q play "${choice[@]:1}"; filter_by_playlist ;;
   esac
 }
 
@@ -179,17 +200,25 @@ play_songs() {
   (( ${#songs[@]} > 1 )) &&
     index=$(( index - ${#songs[@]} + 1))
   mpc -q play "$index"
-  filter_playlist
+  filter_by_playlist
 }
 
-[[ -s "$config_file" ]] && parse_config_file
+[[ -s "$config_file" ]] && parse_config_file < "$config_file"
+
+if (( verbose > 0 && ${#config_err[@]} > 0 )); then
+  err 'there were errors parsing config file:'
+  for e in "${config_err[@]}"; do
+    err "$e"
+  done
+fi
 
 while :; do
   case "$1" in
-    -A|--all) default_filter='filter_all_songs' ; shift ;;
-    -a|--artist) default_filter='filter_by_artist' ; shift ;;
-    -p|--playlist) default_filter='filter_playlist' ; shift ;;
-    -h|--help) usage ; exit ;;
+    -A|--all) default_filter='filter_all_songs'; shift ;;
+    -a|--artist) default_filter='filter_by_artist'; shift ;;
+    -p|--playlist) default_filter='filter_by_playlist'; shift ;;
+    -h|--help) usage; exit ;;
+    -v|--verbose) (( verbose++ )); shift ;;
     *) break
   esac
 done

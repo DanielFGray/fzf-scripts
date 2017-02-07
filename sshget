@@ -25,7 +25,7 @@ HELP
 
 has() {
   local verbose=0
-  if [[ $1 == '-v' ]]; then
+  if [[ $1 = '-v' ]]; then
     verbose=1
     shift
   fi
@@ -63,10 +63,10 @@ for s in "${!domains[@]}"; do
   ssh "${domains[$s]}" "find ${paths[$s]}" | sed -r "s|^|${domains[$s]}:|" >> "$fifo" &
 done
 
-mapfile -t files < <( fzf -e --inline-info --multi --cycle < "$fifo" )
+mapfile -t files < <( fzf -e --inline-info --multi --cycle --bind='Ctrl-A:toggle-all,`:jump' < "$fifo" )
 
 if (( ${#files[@]} )); then
-  rsync -auvzP -e ssh "${files[@]}" .
+  rsync --protect-args -auvzP -e ssh "${files[@]}" .
 fi
 
 cleanup

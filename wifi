@@ -23,13 +23,11 @@ die() {
   exit 1
 }
 
-fzf() {
-  command fzf --ansi --inline-info "$@"
-}
-
 has -v nmcli fzf || die
 
-network=$(nmcli --color yes device wifi | fzf --nth=2 --header-lines=1 | sed -r 's/^\s*\*?\s*//; s/\s*(Ad-Hoc|Infra).*//')
+nmcli -d wifi rescan 2> /dev/null
+network=$(nmcli --color yes device wifi | fzf --ansi --height=40% --reverse --cycle --inline-info --header-lines=1)
 [[ -z "$network" ]] && exit
-
+network=$(sed -r 's/^\s*\*?\s*//; s/\s*(Ad-Hoc|Infra).*//' <<< "$network")
+echo "connecting to \"${network}\"..."
 nmcli -a device wifi connect "$network"

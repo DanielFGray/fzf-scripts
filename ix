@@ -4,7 +4,7 @@ declare -r esc=$'\033'
 declare -r c_reset="${esc}[0m"
 declare -r c_red="${esc}[31m"
 declare OPTIND
-declare opts=()
+declare opts=( -# )
 declare id
 
 usage() {
@@ -83,24 +83,31 @@ get_pastes() {
     grep -A1 -P '\<a href="\/[a-zA-Z0-9]+"\>' |
     awk -F'--' '
       BEGIN {FS="<a href=\""}
-      /a href/{sub(/\">\[r\]<\/a>/, "\t", $2); printf "http://ix.io" $2}
+      /a href/{ sub(/\">\[r\]<\/a>/, "\t", $2); printf "http://ix.io" $2 }
       /@/{sub(/^\s+/, "", $0); print}
     '
 }
 
 list_pastes() {
   local highlighter
-  highlighter=$(select_from 'highlight -q --force -O ansi' pygmentize)
-  get_pastes "$(get_user_name)" | fzf \
+  highlighter=$(select_from 'highlight -q --force -O ansi' pygmentize cat)
+  url=$(get_pastes "$(get_user_name)" | fzf \
     --inline-info --cycle \
     --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \
-    --preview="p={}; curl -s \"\${p## *}\" | head -n\$LINES ${highlighter:+ | $highlighter}" \
+    --preview="curl -s '{1}' | ${highlighter}" \
     --bind 'space:jump' \
-    --bind 'j:down' --bind 'k:up' \
     --bind 'q:abort' \
-    --bind "Ctrl-V:execute:p={}; p=\"\${p## *}\"; less -R < <(curl -s \"\$p\" ${highlighter:+ | $highlighter}) > /dev/tty" \
-    --bind 'Ctrl-E:execute:p={}; p="${p## *}"; curl -s "$p" | vipe > /dev/tty | ix -i "${p##*/}"' \
-    --bind 'Ctrl-D:execute:p={}; p="${p## *}"; ix -d "${p##*/}"'
+    --bind "Ctrl-V:execute:less -R < <(curl -s '{1}' ${highlighter:+ | $highlighter}) > /dev/tty" \
+    --bind 'Ctrl-E:execute:p={1}; edit=$(curl -s "$p" | vipe); ix -i "${p##*/}" <<< "$edit"' \
+    --expect='Ctrl-D')
+  if [[ -n "$url" ]]; then
+    mapfile -t res <<< "$url"
+    if [[ "${res[0]}" = 'Ctrl-D' ]]; then
+      ix -d "${res[1]}"
+      list_pastes
+      exit
+    fi
+  fi
 }
 
 has -v curl || die
@@ -112,10 +119,10 @@ has_account || create_account
 while getopts ":hld:i:n:" x; do
   case "$x" in
     h) usage; exit ;;
-    d) curl "${opts[@]}" -X DELETE "ix.io/$OPTARG"; exit ;;
+    d) curl -s "${opts[@]}" -X DELETE "$OPTARG"; exit ;;
     l)
       if [[ -z "$OPTARG" && -e ~/.netrc ]]; then
-        list_pastes | awk '{print $2}' | tee /dev/tty | xclip
+        list_pastes | cut -d' ' -f1 | tee /dev/tty | xclip
       else
         die 'no netrc found'
       fi

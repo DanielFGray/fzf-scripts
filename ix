@@ -19,10 +19,11 @@ HELP
 }
 
 err() {
-  printf "${c_red}%s${c_reset}\n" "$*" >&2
+  printf "${c_red}%s${c_reset}\n" "$@" >&2
 }
 
 die() {
+  err "$@"
   exit 1
 }
 
@@ -60,7 +61,7 @@ select_from() {
 }
 
 has_account() {
-  grep -qF 'ix.io' ~/.netrc
+  [[ -r ~/.netrc ]] && grep -qF 'ix.io' ~/.netrc
 }
 
 create_account() {
@@ -69,9 +70,13 @@ create_account() {
   read -rs -p 'enter a password (this will be hashed with sha256sum): ' password
   password=$(sha256sum <<< "$password" | awk '{print $1}')
   echo ''
-  tee -a  ~/.netrc <<< "machine ix.io login $username password $password"
+  echo "machine ix.io login $username password $password" >> ~/.netrc
   chmod 600 ~/.netrc
-  echo "$username"
+  if has_account; then
+    echo 'success!'
+  else
+    die 'could not create account!'
+  fi
 }
 
 get_user_name() {

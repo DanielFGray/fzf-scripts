@@ -4,7 +4,7 @@ declare -r esc=$'\033'
 declare -r c_reset="${esc}[0m"
 declare -r c_red="${esc}[31m"
 declare OPTIND
-declare opts=( -# )
+declare -a opts=( -\# )
 declare id
 
 usage() {
@@ -141,9 +141,9 @@ if [[ -t 0 ]]; then
     filename="$1"
     shift
     response=$(curl "${opts[@]}" -F f:1=@"$filename" "$@" "ix.io/$id")
-    clipboard=$(select_from 'xclip' 'xsel')
+    clipboard=$(select_from 'xclip -r ' 'xsel')
     if [[ -n "$clipboard" ]]; then
-      tee <<< "$response" | $clipboard
+      tee /dev/tty <<< "$response" | $clipboard
     else
       echo "$response"
     fi

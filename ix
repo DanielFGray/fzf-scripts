@@ -45,10 +45,7 @@ select_from() {
   local cmd='command -v'
   for a; do
     case "$a" in
-      -c)
-        cmd="$2"
-        shift 2
-        ;;
+      -c) cmd="$2"; shift 2 ;;
     esac
   done
   for c; do
@@ -68,9 +65,10 @@ create_account() {
   echo "It seems you don't have a ~/.netrc with ix.io in it. Let's make one!"
   read -r -p 'enter a username: ' username
   read -rs -p 'enter a password (this will be hashed with sha256sum): ' password
-  password=$(sha256sum <<< "$password" | awk '{print $1}')
   echo ''
-  echo "machine ix.io login $username password $password" >> ~/.netrc
+  password=$(sha256sum <<< "$password")
+  password="${password/%  -}"
+  printf "machine ix.io login %s password %s" "$username" "$password" >> ~/.netrc
   chmod 600 ~/.netrc
   if has_account; then
     echo 'success!'
@@ -126,8 +124,8 @@ while getopts ":hld:i:n:" x; do
     h) usage; exit ;;
     d) curl -s "${opts[@]}" -X DELETE "$OPTARG"; exit ;;
     l)
-      if [[ -z "$OPTARG" && -e ~/.netrc ]]; then
-        list_pastes | cut -d' ' -f1 | tee /dev/tty | xclip
+      if [[ -e ~/.netrc ]]; then
+        list_pastes | cut -d' ' -f1 | xclip
       else
         die 'no netrc found'
       fi
@@ -136,13 +134,19 @@ while getopts ":hld:i:n:" x; do
     n) opts+=( -F "read:1=$OPTARG" ) ;;
   esac
 done
-shift $(( OPTIND - 1))
+shift $(( OPTIND - 1 ))
 
 if [[ -t 0 ]]; then
   if [[ -n "$1" ]]; then
     filename="$1"
     shift
-    curl "${opts[@]}" -F f:1=@"$filename" "$@" "ix.io/$id"
+    response=$(curl "${opts[@]}" -F f:1=@"$filename" "$@" "ix.io/$id")
+    clipboard=$(select_from 'xclip' 'xsel')
+    if [[ -n "$clipboard" ]]; then
+      tee <<< "$response" | $clipboard
+    else
+      echo "$response"
+    fi
     exit
   fi
   echo "^C to cancel, ^D to send."

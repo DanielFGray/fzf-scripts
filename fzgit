@@ -193,7 +193,7 @@ git_log() { # {{{
   local show="git show --color=always \"\$(grep -m1 -o \"[a-f0-9]\{7\}\" <<< {})\""
   fzf --prompt='log' -e --no-sort --tiebreak=index \
     --preview-window=up \
-    --bind="enter:execute:$show" \
+    --bind="enter:execute:$show | less -R" \
     --preview="$show" \
   < <(git log --graph --color=always \
     --format="%C(auto)%h%d %s %C(black)%C(bold)%cr" "$@")
@@ -239,8 +239,9 @@ git_stash() { # {{{
   header='use ctrl-d to show a diff or ctrl-b to create a new branch'
   while out=$(git stash list \
       --pretty="%C(yellow)%h %>(14)%Cgreen%cr %C(blue)%gs" |
-    fzf --prompt='stash' --no-sort --header="$header"
+    fzf --prompt='stash' --no-sort --header="$header" \
       --query="$query" --print-query \
+      --preview='git diff --color {1}' \
       --expect=ctrl-d,ctrl-b)
   do
     mapfile -t response <<< "$out"
@@ -249,14 +250,11 @@ git_stash() { # {{{
     sha="${response[-1]}"
     sha="${sha%% *}"
     [[ -z "$sha" ]] && continue
-    if [[ "$key" == 'ctrl-d' ]]; then
-      PAGER='less' git diff "$sha"
-    elif [[ "$key" == 'ctrl-b' ]]; then
-      git stash branch "stash-$sha" "$sha"
-      break;
-    else
-      PAGER='less' git stash show -p "$sha"
-    fi
+    case "$key" in
+      'ctrl-d') git diff "$sha" --color=always | less -R ;;
+      'ctrl-b') git stash branch "stash-$sha" "$sha" ;;
+      *) git stash show -p "$sha" --color=always | less -R  ;;
+    esac
   done
 }
 # }}}

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+has() {
+  local verbose=0
+  if [[ $1 = '-v' ]]; then
+    verbose=1
+    shift
+  fi
+  for c; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      (( "$verbose" > 0 )) && err "$c not found"
+      return 1
+    fi
+  done
+}
+
+err() {
+  printf "\e[31m%s\e[0m\n" "$*" >&2
+}
+
+die() {
+  (( $# > 0 )) && err "$*"
+  exit 1
+}
+
+has -v fzf || die
+
+fzf() {
+  command fzf --ansi -e --multi --no-hscroll --inline-info --cycle --reverse --bind='Ctrl-a:toggle-all' "$@"
+}
+
+if (( $# == 0 )); then
+package_list=$(pacman -Qs --color=always |
+  gawk '{
+    getline descr;
+    sub(/ */, "", descr);
+    repo = gensub(/\/.*/, "", 1);
+    name = gensub(/.*\//, "", 1, $1);
+    info = gensub(/[^ ]* /, "", 1);
+    print name, info, descr;
+  }')
+
+  mapfile -t pkgs < <(fzf -q '!^lib ' <<< "$package_list" | cut -d' ' -f1)
+  (( ${#pkgs[@]} > 0 )) && sudo pacman -Rcusn "${pkgs[@]}"
+else
+  sudo pacman -Rcusn "$@"
+fi

@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+
+declare -a args
+declare -a packages
+
+declare -A colors
+colors[red]=$(tput setaf 1)
+colors[green]=$(tput setaf 2)
+colors[blue]=$(tput setaf 4)
+colors[reset]=$(tput sgr0)
+
+color() {
+  local color="$1"; shift
+  printf '%s' "${colors[$color]}"
+  printf '%s\n' "$@"
+  printf '%s' "${colors[reset]}"
+}
+
+err() { color red "$@" >&2; return 1; }
+
+die() {
+  (( $# > 0 )) && err "$@"
+  exit 1
+}
+
+has() {
+  local v=0
+  if [[ $1 = '-v' ]]; then
+    v=1
+    shift
+  fi
+  for c; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      (( v > 0 )) && err "$c not found"
+      return 1
+    fi
+  done
+}
+
+has -v npm fzf || die
+
+while true; do
+  case "$1" in
+    -*) args+=( "$1" ) ; shift ;;
+    *) break
+  esac
+done
+
+printf "searching...\r"
+search=$(npm search --json "$*") || exit
+
+printf "formatting...\r"
+search=$(jq -r '.[] | "\(.name)|\(.version)|\(.description)"' <<< "$search" | column -t -s'|')
+
+if has jq; then
+  preview='npm view --json {1} | jq -C "."'
+else
+  preview='npm view {1}'
+fi
+
+mapfile -t packages < <(fzf --multi --ansi --reverse \
+  --bind='Ctrl-X:toggle-preview' \
+  --expect='Ctrl-d,enter' \
+  --preview-window='hidden' \
+  --preview="$preview" \
+  <<< "$search" || exit 1)
+
+key="${packages[0]}"
+case "${key,,}" in
+  ctrl-d) args+=( -D ) ;;
+esac
+
+packages=( $(printf '%s\n' "${packages[@]:1}" | cut -d' ' -f1) )
+
+printf "installing...\r"
+if (( ${#packages[@]} > 0 )); then
+  if has yarn; then
+    yarn add "${args[@]}" "${packages[@]}"
+  else
+    npm i "${args[@]}" "${packages[@]}"
+  fi
+else
+  exit 1
+fi

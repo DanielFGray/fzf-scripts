@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+declare by_size
+
 has() {
   local verbose=0
   if [[ $1 = '-v' ]]; then
@@ -26,22 +28,22 @@ die() {
 has -v fzf || die
 
 fzf() {
-  command fzf --ansi -e --multi --no-hscroll --inline-info --cycle --reverse --bind='Ctrl-a:toggle-all' "$@"
+  command fzf -e --multi --no-hscroll --inline-info --cycle --bind='Ctrl-a:toggle-all' "$@"
 }
 
-if (( $# == 0 )); then
-package_list=$(pacman -Qs --color=always |
-  gawk '{
-    getline descr;
-    sub(/ */, "", descr);
-    repo = gensub(/\/.*/, "", 1);
-    name = gensub(/.*\//, "", 1, $1);
-    info = gensub(/[^ ]* /, "", 1);
-    print name, info, descr;
-  }')
+case $1 in
+  -s|--size) by_size=1; shift;
+esac
 
-  mapfile -t pkgs < <(fzf -q '!^lib ' <<< "$package_list" | cut -d' ' -f1)
-  (( ${#pkgs[@]} > 0 )) && sudo pacman -Rcusn "${pkgs[@]}"
-else
+if (( $# > 0 )); then
   sudo pacman -Rcusn "$@"
+  exit
 fi
+
+if (( by_size )); then
+  mapfile -t pkgs < <(expac -H M '%m\t%n' | sort -hr | fzf --preview='pacman -Si {3}' -q '!^lib ' | cut -f2)
+else
+  mapfile -t pkgs < <(expac '%n' | fzf --preview='pacman -Si {1}' -q '!^lib ' | cut -d' ' -f1)
+fi
+
+(( ${#pkgs[@]} > 0 )) && sudo pacman -Rcusn "${pkgs[@]}"

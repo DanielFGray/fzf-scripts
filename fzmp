@@ -118,16 +118,17 @@ filter_all_songs() {
 
 filter_by_artist() {
   local choice
-  mapfile -t choice < <(mpc list artist |
+  mapfile -t choice < <(mpc list albumartist |
     sort -h |
     fzf \
       --preview='mpc list album artist {}' \
-      --expect='f1,f3,enter')
+      --expect='f1,f3,enter,ctrl-x')
   (( ${#choice[@]} > 0 )) || die
   case "${choice[0]}" in
     f1) filter_all_songs ;;
     f3) filter_by_playlist ;;
     enter) filter_by_album_from_artist "${choice[1]}" ;;
+    ctrl-x) play_artist "${choice[1]}" ;;
   esac
 }
 
@@ -135,17 +136,18 @@ filter_by_album_from_artist() {
   local album artist choice
   [[ -z "$1" ]] && filter_by_artist
   artist="$1"
-  mapfile -t choice < <(mpc search -f '[(%date%)\t][%album%]' artist "$artist" |
+  mapfile -t choice < <(mpc search -f '[[%album%]' albumartist "$artist" |
     sort -h | uniq |
     fzf --prompt="$artist > " \
       --preview="album=\$(cut -f2 <<< {}); mpc search -f '[[[%track% - ][%title%]]|%file%]' artist \"$artist\" album \"\$album\"" \
-      --expect='f1,f3,enter' \
+      --expect='f1,f3,enter,ctrl-x' \
       --bind='Ctrl-A:select-all' |
       cut -f2)
   case "${choice[0]}" in
     'f1') filter_all_songs ;;
     'f3') filter_by_playlist ;;
     'enter') filter_songs_from_album "$artist" "${choice[1]}" ;;
+    'ctrl-x') play_album "${choice[1]}" ;;
     *) filter_by_artist ;;
   esac
 }
@@ -180,7 +182,7 @@ filter_by_playlist() {
       ${current_song:+--header="now playing: ${current_song}"} \
       --delimiter='\t' \
       --with-nth='2..' \
-      --expect='f1,f2,>,<,ctrl-d,enter' |
+      --expect='f1,f2,>,<,ctrl-d,enter,del' |
     cut -f1) || die
   case "${choice[0]}" in
     'f1') filter_all_songs ;;
@@ -189,6 +191,7 @@ filter_by_playlist() {
     '<') mpc -q prev; filter_by_playlist ;;
     'ctrl-d') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[@]:1}"; filter_by_playlist ;;
     'enter') [[ -n "${choice[1]}" ]] && mpc -q play "${choice[@]:1}"; filter_by_playlist ;;
+    'del') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[@]:1}"; filter_by_playlist ;;
   esac
 }
 
@@ -201,6 +204,16 @@ play_songs() {
     index=$(( index - ${#songs[@]} + 1))
   mpc -q play "$index"
   filter_by_playlist
+}
+
+play_artist() {
+    mpc findadd albumartist "$@"
+    filter_by_playlist
+}
+
+play_album() {
+    mpc findadd album "$@"
+    filter_by_playlist
 }
 
 [[ -s "$config_file" ]] && parse_config_file < "$config_file"

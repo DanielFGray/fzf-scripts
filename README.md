@@ -2,7 +2,7 @@
 
 This is a collection of scripts I've written that use [fzf](https://github.com/junegunn/fzf)
 
-Almost all of them require various tools from coreutils like `awk` `sed` `cut`.
+Almost all of them require various tools from coreutils like `awk` `sed` `cut`, and probably make use of GNU extensions.
 
 ## [fv](fv)
 
@@ -12,7 +12,7 @@ Lists or searches for files and opens them with a command, defaults to `vim`. Ki
 
 Interactive git wrapper. Very much still a work in progress, but it has same very cool functions already.
 
-*depends on `git`*
+*depends on `git` and `perl`*
 
 ## [fzmp](fzmp)
 
@@ -32,13 +32,25 @@ Google search from the command line. This is now broken since google deprecated 
 
 ## [ix](ix)
 
-Uploads files to http://ix.io and allows listing and editing of uploads.
+Uploads files to [ix.io](http://ix.io) and allows listing and editing of uploads.
 
 *depends on `curl`*
 
+## [npmsearch](npmsearch)
+
+Searches [npmjs.com](https://npmjs.com) and installs packages with `yarn` if available or `npm`.
+
+*depends on npm and [jq](https://stedolan.github.io/jq/)*
+
 ## [pkgsearch](pkgsearch)
 
-Searches Debian/Ubuntu and Arch repos (including the AUR) and installs multiple packages.
+Searches repos and installs multiple packages. Currently works with Debian, Ubuntu and Arch, and experimental support for Fedora and Void.
+
+## [pkgrm](pkgrm)
+
+Lists and removes packages, optionally sorts by size.
+
+*depends on `pacman`*
 
 ## [sshget](sshget)
 
@@ -54,8 +66,10 @@ List and connect to wifi networks
 
 Currently there's no installation script, but if you clone the repo you can easily symlink the scripts here with something like:
 
-    cd /path/to/repo/fzf-scripts
-    find -maxdepth 1 -executable -type f -exec ln -s -t $HOME/.local/bin /path/to/repo/fzf-scripts/{} \;
+``` sh
+cd /path/to/repo/fzf-scripts
+find -maxdepth 1 -executable -type f -exec ln -s -t $HOME/.local/bin /path/to/repo/fzf-scripts/{} \;
+```
 
 # Legal
 Copyright (C) 2016 Daniel F Gray <DanielFGray@gmail.com>

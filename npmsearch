@@ -2,6 +2,7 @@
 
 declare -a args
 declare -a packages
+declare savedev=0
 
 declare -A colors
 colors[red]=$(tput setaf 1)
@@ -61,13 +62,13 @@ fi
 mapfile -t packages < <(fzf --multi --ansi --reverse \
   --bind='Ctrl-X:toggle-preview' \
   --expect='Ctrl-d,enter' \
-  --preview-window='hidden' \
+  --preview-window='hidden:down' \
   --preview="$preview" \
   <<< "$search" || exit 1)
 
 key="${packages[0]}"
 case "${key,,}" in
-  ctrl-d) args+=( -D ) ;;
+  ctrl-d) savedev=1 ;;
 esac
 
 packages=( $(printf '%s\n' "${packages[@]:1}" | cut -d' ' -f1) )
@@ -75,8 +76,14 @@ packages=( $(printf '%s\n' "${packages[@]:1}" | cut -d' ' -f1) )
 printf "installing...\r"
 if (( ${#packages[@]} > 0 )); then
   if has yarn; then
+    (( savedev > 0 )) && args+=( -D )
     yarn add "${args[@]}" "${packages[@]}"
   else
+    if (( savedev > 0 )); then
+      args+=( -D )
+    else
+      args+=( -S )
+    fi
     npm i "${args[@]}" "${packages[@]}"
   fi
 else

@@ -54,7 +54,7 @@ printf "formatting...\r"
 search=$(jq -r '.[] | "\(.name)|\(.version)|\(.description)"' <<< "$search" | column -t -s'|')
 
 if has jq; then
-  preview='npm view --json {1} | jq -C "."'
+  preview='npm view --json {1} | jq -C "del(.users, .time, .versions)"'
 else
   preview='npm view {1}'
 fi

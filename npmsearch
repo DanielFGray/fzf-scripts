@@ -39,7 +39,27 @@ has() {
 }
 
 has -v npm fzf || die
+select_from() {
+  local cmd='command -v'
+  for a; do
+    case "$a" in
+      -c)
+        cmd="$2"
+        shift 2
+        ;;
+    esac
+  done
+  for c; do
+    if $cmd "${c%% *}" &> /dev/null; then
+      echo "$c"
+      return 0
+    fi
+  done
+  return 1
+}
 
+
+npm=$(select_from npm5 npm) || die 'npm not found'
 while true; do
   case "$1" in
     -*) args+=( "$1" ) ; shift ;;
@@ -48,7 +68,7 @@ while true; do
 done
 
 printf "searching...\r"
-search=$(npm search --json "$*") || exit
+search=$($npm search --json "$*") || exit
 
 printf "formatting...\r"
 search=$(jq -r '.[] | "\(.name)|\(.version)|\(.description)"' <<< "$search" | column -t -s'|')
@@ -57,7 +77,7 @@ mapfile -t packages < <(fzf --inline-info --multi --ansi --reverse \
   --bind='Ctrl-X:toggle-preview' \
   --expect='Ctrl-d,enter' \
   --preview-window='hidden:down' \
-  --preview='npm view --json {1} | jq -C "del(.users, .time, .versions)"' \
+  --preview="$npm -s --json view {1} | jq -C \"del(.users, .time, .versions)\"" \
   --header='enter to save, Ctrl-D saves as dev-dependency, Ctrl-X for extra info, tab to select multiple' \
   <<< "$search" || exit 1)
 
@@ -79,7 +99,7 @@ if (( ${#packages[@]} > 0 )); then
     else
       args+=( -S )
     fi
-    npm i "${args[@]}" "${packages[@]}"
+    $npm i "${args[@]}" "${packages[@]}"
   fi
 else
   exit 1

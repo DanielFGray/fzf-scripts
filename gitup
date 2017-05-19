@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+
+declare -A colors
+colors[red]=$(tput setaf 1)
+colors[green]=$(tput setaf 2)
+colors[blue]=$(tput setaf 4)
+colors[reset]=$(tput sgr0)
+declare processes=4
+declare quiet
+
+usage() {
+  LESS=-FEXR less <<'HELP'
+gitup [dir] [OPTIONS]
+
+search for git repos and update them
+
+if unspecified, dir defaults to $HOME
+
+-p [number]    how many processes to run git pull in parallel
+-q             quiet level, may be stacked
+               first level suppresses output from `git pull`
+               second level suppresses job info
+-h             print this help
+HELP
+}
+
+color() {
+  local c
+  c="$1"
+  shift
+  printf '%s' "${colors[$c]}" >&2
+  printf '%s\n' "$@" >&2
+  printf '%s' "${colors[reset]}" >&2
+}
+
+err() {
+  color red "$@" >&2
+}
+
+die() {
+  [[ -n "$1" ]] && err "$1"
+  exit 1
+}
+
+has() {
+  local verbose
+  if [[ $1 = '-v' ]]; then
+    verbose=1
+    shift
+  fi
+  for c; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      (( "$verbose" > 0 )) && err "$c not found"
+      return 1
+    fi
+  done
+}
+
+has -v fzf git || die
+
+while getopts ":hqp:" x; do
+  case "$x" in
+    h) usage; exit; ;;
+    p) processes="$OPTARG" ;;
+    q) (( quiet++ )) ;;
+  esac
+done
+shift $(( OPTIND - 1 ))
+
+dir="$HOME"
+if [[ -d "$1" ]]; then
+  dir="$1"
+fi
+
+mapfile -t dirs < <(find -L "$dir" -name '.git' -printf '%h\n' 2> /dev/null \
+  | fzf --multi --cycle --inline-info)
+
+(( ${#dirs[@]} > 0 )) || exit
+
+update() {
+  local name dir
+  dir="$1"
+  name="${dir##*/}"
+  (( quiet > 1 )) || color blue ":: updating $name"
+  if git -C "$dir" pull ${quiet:+-q}; then
+    (( quiet > 1 )) || color green ":: updated $name"
+  else
+    color red ":: failed to update $name"
+  fi
+}
+
+for d in "${dirs[@]}"; do
+  (( count++ >= processes )) && wait -n
+  update "$d" &
+done
+wait
+
+printf '%d repos updated\n' "${#dirs[@]}"

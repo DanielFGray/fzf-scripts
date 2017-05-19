@@ -3,6 +3,7 @@
 declare -a args
 declare -a packages
 declare savedev=0
+declare global=0
 
 declare -A colors
 colors[red]=$(tput setaf 1)
@@ -38,7 +39,6 @@ has() {
   done
 }
 
-has -v npm fzf || die
 select_from() {
   local cmd='command -v'
   for a; do
@@ -58,39 +58,36 @@ select_from() {
   return 1
 }
 
+has -v fzf || die
 
 npm=$(select_from npm5 npm) || die 'npm not found'
-while true; do
-  case "$1" in
-    -*) args+=( "$1" ) ; shift ;;
-    *) break
-  esac
-done
 
-printf "searching...\r"
+printf 'searching...\r'
 search=$($npm search --json "$*") || exit
 
-printf "formatting...\r"
 search=$(jq -r '.[] | "\(.name)|\(.version)|\(.description)"' <<< "$search" | column -t -s'|')
 
 mapfile -t packages < <(fzf --inline-info --multi --ansi --reverse \
   --bind='Ctrl-X:toggle-preview' \
-  --expect='Ctrl-d,enter' \
+  --expect='Ctrl-g,Ctrl-d,enter' \
   --preview-window='hidden:down' \
   --preview="$npm -s --json view {1} | jq -C \"del(.users, .time, .versions)\"" \
-  --header='enter to save, Ctrl-D saves as dev-dependency, Ctrl-X for extra info, tab to select multiple' \
+  --header='Ctrl-D saves as dev-dependency, Ctrl-G installs globally, Ctrl-X for extra info, tab to select multiple' \
   <<< "$search" || exit 1)
 
 key="${packages[0]}"
 case "${key,,}" in
   ctrl-d) savedev=1 ;;
+  ctrl-g) global=1 ;;
 esac
 
-packages=( $(printf '%s\n' "${packages[@]:1}" | cut -d' ' -f1) )
+mapfile -t packages < <(printf '%s\n' "${packages[@]:1}" | cut -d' ' -f1)
 
 printf "installing...\r"
 if (( ${#packages[@]} > 0 )); then
-  if has yarn; then
+  if (( global > 0 )); then
+    $npm install -g "${args[@]}" "${packages[@]}"
+  elif has yarn; then
     (( savedev > 0 )) && args+=( -D )
     yarn add "${args[@]}" "${packages[@]}"
   else

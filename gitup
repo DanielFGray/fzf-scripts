@@ -7,6 +7,7 @@ colors[blue]=$(tput setaf 4)
 colors[reset]=$(tput sgr0)
 declare processes=4
 declare quiet
+declare -a dirs
 
 usage() {
   LESS=-FEXR less <<'HELP'
@@ -67,15 +68,19 @@ while getopts ":hqp:" x; do
 done
 shift $(( OPTIND - 1 ))
 
-dir="$HOME"
-if [[ -d "$1" ]]; then
-  dir="$1"
-fi
+while :; do
+  if [[ -d "$1" ]]; then
+    dirs+=( "$1" )
+  fi
+  shift || break
+done
 
-mapfile -t dirs < <(find -L "$dir" -name '.git' -printf '%h\n' 2> /dev/null \
+(( ${#dirs[@]} > 0 )) || dirs=("$HOME")
+
+mapfile -t repos < <(find -L "${dirs[@]}" -name '.git' -printf '%h\n' 2> /dev/null \
   | fzf --multi --cycle --inline-info)
 
-(( ${#dirs[@]} > 0 )) || exit
+(( ${#repos[@]} > 0 )) || exit
 
 update() {
   local name dir
@@ -89,10 +94,10 @@ update() {
   fi
 }
 
-for d in "${dirs[@]}"; do
+for d in "${repos[@]}"; do
   (( count++ >= processes )) && wait -n
   update "$d" &
 done
 wait
 
-printf '%d repos updated\n' "${#dirs[@]}"
+printf '%d repos updated\n' "${#repos[@]}"

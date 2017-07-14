@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
 
-declare -r esc=$'\033'
-declare -r c_reset="${esc}[0m"
-declare -r c_red="${esc}[31m"
-declare -r config_file="${XDG_CONFIG_DIR:-$HOME/.config}/fzmp/conf"
-declare verbose
-declare default_filter='filter_all_songs'
-declare track_format='[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
-declare -a config_err
-
 usage() {
   LESS=-FEXR less <<'HELP'
 fzmp [OPTIONS]
@@ -21,7 +12,6 @@ fzmp [OPTIONS]
                    >   go to the next song in the playlist
                    <   go to the previous song in the playlist
                    C-d delete the selected songs from the playlist
-    -v --verbose   print errors when parsing the config file
     -h --help      print this help
 
   CONFIGURATION:
@@ -40,12 +30,42 @@ fzmp [OPTIONS]
 HELP
 }
 
+declare -r config_file="${XDG_CONFIG_DIR:-$HOME/.config}/fzmp/conf"
+declare default_filter='filter_by_playlist'
+declare track_format='[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
+declare -a config_err
+
+declare playlist_view_key='f1'
+declare artist_view_key='f2'
+declare track_view_key='f3'
+declare genre_view_key='f4'
+declare findadd_key='ctrl-x'
+
+declare -A colors
+colors[red]=$(tput setaf 1)
+colors[green]=$(tput setaf 2)
+colors[blue]=$(tput setaf 4)
+colors[reset]=$(tput sgr0)
+
 is_running() {
   pgrep "$1" &> /dev/null
 }
 
+info() {
+  color green "$@" >&2
+}
+
+color() {
+  local c
+  c="$1"
+  shift
+  printf '%s' "${colors[$c]}"
+  printf '%s\n' "$@"
+  printf '%s' "${colors[reset]}"
+}
+
 err() {
-  printf "${c_red}%s${c_reset}\n" "$*" >&2
+  color red "$@" >&2
 }
 
 die() {
@@ -54,14 +74,14 @@ die() {
 }
 
 has() {
-  local verbose=0
+  local loud=0
   if [[ $1 == '-v' ]]; then
-    verbose=1
+    loud=1
     shift
   fi
   for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      (( verbose > 0 )) && err "$c not found"
+      (( loud > 0 )) && err "$c not found"
       return 1
     fi
   done
@@ -72,7 +92,7 @@ fzf() {
 }
 
 parse_config_file() {
-  local line key val nr=0
+  local line key val nr=0 e
   while IFS= read -r line; do
     (( ++nr ))
     [[ -z "$line" || "$line" = '#'* ]] && continue
@@ -94,41 +114,93 @@ parse_config_file() {
           esac
         else
           config_err+=( "unknown format \"$val\" in config file on line $nr" )
-        fi
-        ;;
+        fi ;;
+      playlist_view_key) playlist_view_key="$val" ;;
+      artist_view_key) artist_view_key="$val" ;;
+      track_view_key) track_view_key="$val" ;;
+      genre_view_key) genre_view_key="$val" ;;
+      findadd_key) findadd_key="$val" ;;
       *) config_err+=( "unknown key \"$key\" in config file on line $nr" )
     esac
   done
+  if (( ${#config_err[@]} > 0 )); then
+    err 'there were errors parsing config file:'
+    for e in "${config_err[@]}"; do
+      err "  $e"
+    done
+  fi
 }
 
 filter_all_songs() {
   local choice
-  mapfile -t choice < <( mpc search -f "%file%\t$track_format" filename '' |
+  mapfile -t choice < <(mpc search -f "%file%\t$track_format" filename '' |
     fzf --multi \
       --with-nth='2..' \
       --delimiter='\t' \
-      --expect='f2,f3,enter' |
+      --expect='f1,f2,f3,f4,enter' |
     cut -f1)
   case "${choice[0]}" in
-    'f2') filter_by_artist ;;
-    'f3') filter_by_playlist ;;
-    'enter') printf '%s\n' "${choice[@]:1}" | play_songs ;;
+    "$playlist_view_key") filter_by_playlist ;;
+    "$artist_view_key") filter_by_artist ;;
+    "$track_view_key") filter_all_songs ;;
+    "$genre_view_key") filter_by_genre ;;
+    'enter') printf '%s\n' "${choice[@]:1}" | add_songs play ;;
+  esac
+}
+
+filter_by_genre() {
+  local choice
+  mapfile -t choice < <(mpc search -f '%genre%' genre '' | awk 'NF' | sort | uniq -ic | sort -rn |
+    fzf \
+      --preview='mpc search -f "%artist%" genre {2..} | sort -u' \
+      --bind="$findadd_key:execute:mpc findadd genre {2..}" \
+      --expect='f1,f2,f3,f4,enter' | sed -r 's/^\s*[0-9]+\s*//')
+  (( ${#choice[@]} > 0 )) || die
+  case "${choice[0]}" in
+    "$playlist_view_key") filter_by_playlist ;;
+    "$artist_view_key") filter_by_artist ;;
+    "$track_view_key") filter_all_songs ;;
+    "$genre_view_key") filter_by_genre ;;
+    enter) filter_by_artist_from_genre "${choice[1]}" ;;
+    *) $default_filter ;;
+  esac
+}
+
+filter_by_artist_from_genre() {
+  local artist genre choice
+  genre="$1"
+  mapfile -t choice < <(mpc search -f '%artist%' genre "$genre" | sort -u |
+    awk 'NF' | sort -u |
+    fzf \
+      --preview="mpc search -f '%album%\t%title%' artist {} | awk -F'\t' '{ if(album != \$1) { album=\$1; print album } printf \"  %s\n\", \$2 }'" \
+      --expect='f1,f2,f3,f4,enter' \
+      --bind="$findadd_key:execute:mpc findadd artist {}")
+  (( ${#choice[@]} > 0 )) || filter_by_genre
+  case "${choice[0]}" in
+    "$playlist_view_key") filter_by_playlist ;;
+    "$artist_view_key") filter_by_artist ;;
+    "$track_view_key") filter_all_songs ;;
+    "$genre_view_key") filter_by_genre ;;
+    enter) filter_by_album_from_artist "${choice[1]}" ;;
+    *) "$filter_by_genre" ;;
   esac
 }
 
 filter_by_artist() {
   local choice
-  mapfile -t choice < <(mpc list albumartist |
-    sort -h |
+  mapfile -t choice < <(mpc list artist |
     fzf \
-      --preview='mpc list album artist {}' \
-      --expect='f1,f3,enter,ctrl-x')
+      --preview="mpc search -f '%album%\t%title%' artist {} | awk -F'\t' '{ if(album != \$1) { album=\$1; print album } printf \"  %s\n\", \$2 }'" \
+      --bind="$findadd_key:execute:mpc findadd artist {}" \
+      --expect='f1,f2,f3,f4,enter')
   (( ${#choice[@]} > 0 )) || die
   case "${choice[0]}" in
-    f1) filter_all_songs ;;
-    f3) filter_by_playlist ;;
-    enter) filter_by_album_from_artist "${choice[1]}" ;;
-    ctrl-x) play_artist "${choice[1]}" ;;
+    "$playlist_view_key") filter_by_playlist ;;
+    "$artist_view_key") filter_by_artist ;;
+    "$track_view_key") filter_all_songs ;;
+    "$genre_view_key") filter_by_genre ;;
+    'enter') filter_by_album_from_artist "${choice[1]}" ;;
+    *) $default_filter ;;
   esac
 }
 
@@ -136,18 +208,20 @@ filter_by_album_from_artist() {
   local album artist choice
   [[ -z "$1" ]] && filter_by_artist
   artist="$1"
-  mapfile -t choice < <(mpc search -f '[[%album%]' albumartist "$artist" |
+  mapfile -t choice < <(mpc search -f '[(%date%)]\t[%album%]' artist "$artist" |
     sort -h | uniq |
     fzf --prompt="$artist > " \
-      --preview="album=\$(cut -f2 <<< {}); mpc search -f '[[[%track% - ][%title%]]|%file%]' artist \"$artist\" album \"\$album\"" \
-      --expect='f1,f3,enter,ctrl-x' \
-      --bind='Ctrl-A:select-all' |
+      --preview="mpc search -f '[[[%track% - ][%title%]]|%file%]' artist '$artist' album {2}" \
+      --expect="f1,f2,f3,f4,enter,$findadd_key" \
+      --delimiter='\t' |
       cut -f2)
   case "${choice[0]}" in
-    'f1') filter_all_songs ;;
-    'f3') filter_by_playlist ;;
+    "$playlist_view_key") filter_by_playlist ;;
+    "$artist_view_key") filter_by_artist ;;
+    "$track_view_key") filter_all_songs ;;
+    "$genre_view_key") filter_by_genre ;;
     'enter') filter_songs_from_album "$artist" "${choice[1]}" ;;
-    'ctrl-x') play_album "${choice[1]}" ;;
+    "$findadd_key") mpc findadd album "${choice[1]}" ;;
     *) filter_by_artist ;;
   esac
 }
@@ -162,13 +236,15 @@ filter_songs_from_album() {
       --multi \
       --with-nth='2..' \
       --delimiter='\t' \
-      --expect='f1,f3,enter' \
-      --bind='Ctrl-A:select-all' |
+      --expect='f1,f2,f3,enter' |
     cut -f1)
   case "${choice[0]}" in
-    'f1') filter_all_songs ;;
-    'f3') filter_by_playlist ;;
-    'enter') printf '%s\n' "${choice[@]:1}" | play_songs ;;
+    "$playlist_view_key") filter_by_playlist ;;
+    "$artist_view_key") filter_by_artist ;;
+    "$track_view_key") filter_all_songs ;;
+    "$genre_view_key") filter_by_genre ;;
+    'enter') filter_songs_from_album "$artist" "${choice[1]}" ;;
+    'enter') printf '%s\n' "${choice[@]:1}" | add_songs play ;;
     *) filter_by_album_from_artist "$artist" ;;
   esac
 }
@@ -182,23 +258,26 @@ filter_by_playlist() {
       ${current_song:+--header="now playing: ${current_song}"} \
       --delimiter='\t' \
       --with-nth='2..' \
-      --expect='f1,f2,>,<,ctrl-d,enter,del' |
+      --expect='f1,f2,f3,f4,>,<,ctrl-d,enter,ctrl-z' |
     cut -f1) || die
   case "${choice[0]}" in
-    'f1') filter_all_songs ;;
-    'f2') filter_by_artist ;;
+    "$playlist_view_key") filter_by_playlist ;;
+    "$artist_view_key") filter_by_artist ;;
+    "$track_view_key") filter_all_songs ;;
+    "$genre_view_key") filter_by_genre ;;
     '>') mpc -q next; filter_by_playlist ;;
     '<') mpc -q prev; filter_by_playlist ;;
-    'ctrl-d') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[@]:1}"; filter_by_playlist ;;
-    'enter') [[ -n "${choice[1]}" ]] && mpc -q play "${choice[@]:1}"; filter_by_playlist ;;
-    'del') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[@]:1}"; filter_by_playlist ;;
+    'ctrl-d') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[@]:1}"& filter_by_playlist ;;
+    'enter') [[ -n "${choice[1]}" ]] && mpc -q play "${choice[@]:1}"& filter_by_playlist ;;
+    'ctrl-z') mpc clear; filter_by_artist  ;;
   esac
 }
 
-play_songs() {
+add_songs() {
   mapfile -t songs
   (( "${#songs[@]}" > 0 )) || die
   printf '%s\n' "${songs[@]}" | mpc -q add
+  [[ $1 == play ]] || return
   index=$(mpc playlist | wc -l)
   (( ${#songs[@]} > 1 )) &&
     index=$(( index - ${#songs[@]} + 1))
@@ -206,24 +285,7 @@ play_songs() {
   filter_by_playlist
 }
 
-play_artist() {
-    mpc findadd albumartist "$@"
-    filter_by_playlist
-}
-
-play_album() {
-    mpc findadd album "$@"
-    filter_by_playlist
-}
-
 [[ -s "$config_file" ]] && parse_config_file < "$config_file"
-
-if (( verbose > 0 && ${#config_err[@]} > 0 )); then
-  err 'there were errors parsing config file:'
-  for e in "${config_err[@]}"; do
-    err "$e"
-  done
-fi
 
 while :; do
   case "$1" in
@@ -231,7 +293,6 @@ while :; do
     -a|--artist) default_filter='filter_by_artist'; shift ;;
     -p|--playlist) default_filter='filter_by_playlist'; shift ;;
     -h|--help) usage; exit ;;
-    -v|--verbose) (( verbose++ )); shift ;;
     *) break
   esac
 done

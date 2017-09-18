@@ -4,7 +4,7 @@
 # https://github.com/junegunn/fzf/wiki/examples#git
 
 # declare BOLD=$(tput bold || tput md)
-declare c_reset="\e[0m"
+declare c_reset=$(tput sgr0)
 declare c_green=$(tput setaf 2 || tput AF 2)
 declare c_red=$(tput setaf 1 || tput AF 1)
 
@@ -41,7 +41,7 @@ fzf() { # {{{
     shift
   fi
   branch=$(git status 2> /dev/null | sed 's/On branch />/;q')
-  $(which fzf) --inline-info --ansi --cycle --prompt="fzgit${branch}>${prompt} " "$@"
+  command fzf --inline-info --ansi --cycle --prompt="fzgit${branch}>${prompt} " "$@"
 }
 # }}}
 
@@ -261,8 +261,8 @@ git_stash() { # {{{
 
 pick_cmd() {
   for c in "${!implemented_git_cmds[@]}"; do
-    printf "${c_green}%s${c_reset}| -- %s\n" "$c" "${git_cmds_descriptions[$c]}"
-  done | column -s'|' -t | fzf | awk '{print $1}'
+    printf '%s%-15s%s -- %s\n' "${c_green}" "$c" "${c_reset}" "${git_cmds_descriptions[$c]}"
+  done | fzf | awk '{print $1}'
 }
 
 main() {

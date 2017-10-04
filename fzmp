@@ -36,8 +36,8 @@ declare track_format='[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title
 declare -a config_err
 
 declare playlist_view_key='f1'
-declare artist_view_key='f2'
-declare track_view_key='f3'
+declare track_view_key='f2'
+declare artist_view_key='f3'
 declare genre_view_key='f4'
 declare findadd_key='ctrl-x'
 
@@ -88,7 +88,11 @@ has() {
 }
 
 fzf() {
-  command fzf ${FZMP_FZF_OPTIONS:-+s -e -i --reverse --cycle} --inline-info --ansi "$@"
+  command fzf ${FZMP_FZF_OPTIONS:-+s -e -i --reverse --cycle} \
+    --inline-info \
+    --ansi \
+    --no-clear \
+    "$@"
 }
 
 parse_config_file() {
@@ -221,7 +225,7 @@ filter_by_album_from_artist() {
     "$track_view_key") filter_all_songs ;;
     "$genre_view_key") filter_by_genre ;;
     'enter') filter_songs_from_album "$artist" "${choice[1]}" ;;
-    "$findadd_key") mpc findadd album "${choice[1]}" ;;
+    "$findadd_key") mpc findadd album "${choice[1]}"; filter_by_album_from_artist "$artist" ;;
     *) filter_by_artist ;;
   esac
 }

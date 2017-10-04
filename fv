@@ -1,11 +1,51 @@
 #!/usr/bin/env bash
 
-declare -r esc=$'\033'
-declare -r c_reset="${esc}[0m"
-declare -r c_red="${esc}[31m"
+usage() {
+  LESS=-FEXR less <<'HELP'
+fv [OPTIONS] [SEARCH]
+fuzzy file filtering and command executing
+
+a) allfiles=1 ;;
+c) cmd="$OPTARG" ;;
+d) dtach=1 ;;
+o) loop=1 ;;
+s) small=1 ;;
+
+-a    search all dirs and hidden files (possibly quirky)
+-c    command to execute [defaults to vim]
+-d    run in background (for ie non-terminal programs)
+-h    show this help
+-l    additional arguments to pass to filtering program
+-o    run continuously
+-s    run in a smaller window
+HELP
+}
+
+declare cmd=''
+declare cmdopts=()
+declare search_str=''
+declare search_cmd=''
+declare search_opts=()
+declare allfiles=''
+declare loop
+declare small
+declare -A colors
+colors[red]=$(tput setaf 1)
+colors[green]=$(tput setaf 2)
+colors[blue]=$(tput setaf 4)
+colors[reset]=$(tput sgr0)
+
+color() {
+  local c
+  c="$1"
+  shift
+  printf '%s' "${colors[$c]}"
+  printf '%s\n' "$@"
+  printf '%s' "${colors[reset]}"
+}
 
 err() {
-  printf "${c_red}%s${c_reset}\n" "$*" >&2
+  color red "$@" >&2
 }
 
 die() {
@@ -14,11 +54,14 @@ die() {
 }
 
 has() {
-  local verbose=0
-  if [[ $1 == '-v' ]]; then
-    verbose=1
-    shift
-  fi
+  local o c verbose
+  verbose=0
+  while getopts 'v' o; do
+    case "$o" in
+      v) v=1 ;;
+    esac
+  done
+  shift "$((OPTIND-1))"
   for c; do c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
       (( verbose > 0 )) && err "$c not found"
@@ -27,59 +70,59 @@ has() {
   done
 }
 
-usage() {
-  more <<'HELP'
-fv [OPTIONS] [SEARCH]
-fuzzy file filtering and command executing
-
--c    command to execute [defaults to vim]
--a    search all dirs and hidden files (still quirky)
--d    detach from terminal via nohup
-HELP
+select_from() {
+  local o c cmd OPTARG OPTIND
+  cmd='command -v'
+  while getopts 'c:' o; do
+    case "$o" in
+      c) cmd="$OPTARG" ;;
+    esac
+  done
+  shift "$((OPTIND-1))"
+  for c; do
+    if $cmd "${c%% *}" &> /dev/null; then
+      echo "$c"
+      return 0
+    fi
+  done
+  return 1
 }
 
-set_cmd() {
-   if has "$1"; then
-    cmd="$1"
-  else
-    die "$1 is not a valid command"
-  fi
-}
-
-declare cmd='vim'
-declare cmdopts=()
-declare search_str=''
-declare search_cmd=''
-declare search_opts=()
-declare allfiles=0
-
-while getopts "hadlc:" opt; do
+while getopts 'ac:dhlos' opt; do
   case "$opt" in
-    h) usage; exit 0        ;;
-    a) allfiles=1           ;;
-    c) set_cmd "$OPTARG"     ;;
-    d) unset detach         ;;
+    a) allfiles=1 ;;
+    c) cmd="$OPTARG" ;;
+    d) dtach=1 ;;
+    h) usage; exit 0 ;;
     l) search_opts+=( '-l' ) ;;
+    o) loop=1 ;;
+    s) small=1 ;;
   esac
 done
 shift "$((OPTIND-1))"
 
 has -v 'fzf' || die
 
-for c in 'ag' 'ack' 'grep'; do
-  if has "$c"; then
-    search_cmd="$c"
-    break
-  fi
-done
+if [[ -v FV_CMD ]]; then
+  cmd="$FV_CMD"
+elif [[ -z "$cmd" ]]; then
+  cmd=$(select_from 'v' 'vim')
+fi
+
+
+if [[ -v FV_SEARCH ]]; then
+  search_cmd="$FV_SEARCH"
+else
+  search_cmd=$(select_from 'ag' 'ack' 'grep')
+fi
 
 if [[ "$search_cmd"  == 'grep' ]]; then
   err 'grep is slow, you should strongly consider installing ag or ack'
-  sleep .5
+  sleep .75
 fi
 
 if [[ -n "$1" ]]; then
-  if [[ -d "$1" ]]; then
+  if [[ -e "$1" ]]; then
     search_opts+=( "$1" )
   else
     search_str="$1"
@@ -90,55 +133,74 @@ fi
 case "$search_cmd" in
   'ag')
     search_opts+=( '--color' )
-    if [[ "$allfiles" == 1 ]]; then
+    if [[ -n "$allfiles" ]]; then
       search_opts+=( '-u' '--hidden' )
     fi
     if [[ "$search_str" == '' ]]; then
       search_opts+=( '-l' )
-    fi
-    ;;
+    fi ;;
   'ack')
     if [[ "$search_str" == '' ]]; then
-      if [[ "$allfiles" == 0 ]]; then
-        search_opts+=( '-g' '^[^\.]' )
-      else
+      if [[ -z "$allfiles" ]]; then
         search_opts+=( '-f' )
+      else
+        search_opts+=( '-g' '^[^\.]' )
       fi
     else
       search_opts+=( '-l' )
     #   search_opts+=( '--match' )
-    fi
-    ;;
+    fi ;;
   'grep')
     search_opts+=( '-r' '-I' )
-    if [[ "$allfiles" == 0 ]]; then
-      search_opts+=( '--exclude-dir=bower_components' )
-      search_opts+=( '--exclude-dir=node_modules' )
-      search_opts+=( '--exclude-dir=jspm_packages' )
-      search_opts+=( '--exclude-dir=.cvs' )
-      search_opts+=( '--exclude-dir=.git' )
-      search_opts+=( '--exclude-dir=.hg' )
-      search_opts+=( '--exclude-dir=.svn' )
+    if [[ -z "$allfiles" ]]; then
+      if [[ -r ~/.ignore ]]; then
+        while read -r line; do
+          search_opts+=( "--exclude-dir=$line" )
+        done < ~/.ignore
+      else
+        search_opts+=( '--exclude-dir=bower_components' )
+        search_opts+=( '--exclude-dir=node_modules' )
+        search_opts+=( '--exclude-dir=jspm_packages' )
+        search_opts+=( '--exclude-dir=.cvs' )
+        search_opts+=( '--exclude-dir=.git' )
+        search_opts+=( '--exclude-dir=.hg' )
+        search_opts+=( '--exclude-dir=.svn' )
+      fi
     fi
-    if [[ "$search_str" == '' ]]; then
-      search_opts+=( '' )
-    fi
-    ;;
+    if [[ -z "$search_str" ]]; then
+      search_opts+=( -F '' )
+    else
+      search_opts+=( -P )
+    fi ;;
 esac
 
 if [[ "$search_str" != '' ]]; then
   search_opts+=( "$search_str" )
 fi
 
-choices=$($search_cmd "${search_opts[@]}" 2> /dev/null |
-  fzf --ansi --cycle --multi) || exit 1
+main() {
+  choices=$($search_cmd "${search_opts[@]}" 2> /dev/null |
+  fzf -e --ansi --cycle --multi --reverse ${small:+--reverse --height=50%}) || exit 1
 
-if [[ "$search_str" != '' ]]; then
-  if [[ $search_cmd == 'ag' ]]; then
-    choices=$(cut -d: -f1 <<< "$choices")
+  if [[ "$search_str" != '' ]]; then
+    if [[ $search_cmd == 'ag' ]]; then
+      choices=$(cut -d: -f1 <<< "$choices")
+    fi
   fi
+
+  mapfile -t choices <<< "$choices"
+
+  if [[ $dtach ]]; then
+    ($cmd "${cmdopts[@]}" "${choices[@]}" &> /dev/null &)
+  else
+    $cmd "${cmdopts[@]}" "${choices[@]}"
+  fi
+}
+
+if [[ -n "$loop" ]]; then
+  while main; do
+    true
+  done
+else
+  main
 fi
-
-mapfile -t choices <<< "$choices"
-
-$cmd ${cmdopts[*]} "${choices[@]}"

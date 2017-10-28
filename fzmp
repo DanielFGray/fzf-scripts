@@ -4,35 +4,64 @@ usage() {
   LESS=-FEXR less <<'HELP'
 fzmp [OPTIONS]
 
-  OPTIONS:
-    -A --all       search all songs in the library (or F1 when running)
-    -a --artist    search artist then filter by album (or F2 when running)
-    -p --playlist  search the current playlist (or F3 when running)
-                   playlist view has the following keybinds:
-                   >   go to the next song in the playlist
-                   <   go to the previous song in the playlist
-                   C-d delete the selected songs from the playlist
-    -h --help      print this help
+OPTIONS:
+  -A --all
+    search all songs in the library (or F1 when running)
+  -a --artist
+    search artist then filter by album (or F2 when running)
+  -p --playlist
+    search the current playlist (or F3 when running)
+    playlist view has the following keybinds:
+    >   go to the next song in the playlist
+    <   go to the previous song in the playlist
+    C-d delete the selected songs from the playlist
+  -h --help
+    print this help
 
-  CONFIGURATION:
-    A configuration file can be defined at $XDG_CONFIG_DIR (defaults to ~/.config)
-    If a line begins with '#' it is treated as a comment and ignored
-    The configuration file reads the following options:
+CONFIGURATION:
+  A configuration file can be defined at $XDG_CONFIG_DIR (defaults to ~/.config)
+  If a line begins with '#' it is treated as a comment and ignored
+  The configuration file reads the following options:
 
-    default_view       must be 'artists' 'songs' or 'playlist'
-    full_song_format   a format string to be passed directly to `mpc format -f` in 'playlist' and 'all' views
-                       defaults to '[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
-                       for colorized output try: '[[[\e\[32m%artist%\e\[0m / ][\e\[31m[(%date%) ]%album%\e\[0m / ][\e\[34m[%track% - ][%title%]\e\[0m]]|%file%]'
-    fzf_options        command line options to be passed directly to fzf
-                       changing this will override the default options: '+s -e -i --reverse --cycle'
-                       to use the jump feature of fzf you can try '+s -e -i --reverse --cycle --bind=`:jump'
-                       this can also be overridden with the environment variable FZMP_FZF_OPTIONS
+  default_view
+    Must be 'artists' 'songs' 'playlist' or 'genres'
+  full_song_format
+    A format string to be passed directly to `mpc format -f` in
+    'playlist' and 'all' views. Defaults to:
+    [[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]
+    For colorized output try:
+    [[[\e\[32m%artist%\e\[0m / ][\e\[31m[(%date%) ]%album%\e\[0m / ][\e\[34m[%track% - ][%title%]\e\[0m]]|%file%]
+  playlist_view_key
+    shows the playlist from any view
+    defaults to f1
+  track_view_key
+    shows all tracks from any view
+    defaults to f2
+  artist_view_key
+    shows artists from any view
+    defaults to f3
+  genre_view_key
+    shows genres from any view
+    defaults to f4
+  findadd_key
+    adds all songs by artist/genre/album
+    defaults to Ctrl-x
+  fzf_options
+    Command line options to be passed directly to fzf.
+    Changing this will override the default options: +s -e -i --reverse --cycle
+    To use the jump feature of fzf you can try:
+    +s -e -i --reverse --cycle --bind=`:jump
+    or add this to your FZF_DEFAULT_OPTS
+    It also helps to have a bind for toggle-all, e.g.
+    +s -e -i --reverse --cycle --bind=`:jump --bind="Ctrl-A:toggle-all"
+    This can also be overridden with the environment variable FZMP_FZF_OPTIONS
 HELP
 }
 
 declare -r config_file="${XDG_CONFIG_DIR:-$HOME/.config}/fzmp/conf"
 declare default_filter='filter_by_playlist'
 declare track_format='[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
+declare -r album_listing="mpc search -f '%album%\t%title%' artist {} | awk -F'\t' '{ if(album != \$1) { album=\$1; print album } printf \"  %s\n\", \$2 }'"
 declare -a config_err
 
 declare playlist_view_key='f1'
@@ -110,11 +139,12 @@ parse_config_file() {
       full_song_format) track_format="$val" ;;
       fzf_options) [[ ! -v FZMP_FZF_OPTIONS ]] && FZMP_FZF_OPTIONS="$val" ;;
       default_view)
-        if [[ "$val" =~ playlist|songs|artists ]]; then
+        if [[ "$val" =~ ^playlist$|^songs$|^artists$|^genres$ ]]; then
           case "$val" in
             playlist) default_filter='filter_by_playlist' ;;
             songs) default_filter='filter_all_songs' ;;
             artists) default_filter='filter_by_artist' ;;
+            genres) default_filter='filter_by_genre' ;;
           esac
         else
           config_err+=( "unknown format \"$val\" in config file on line $nr" )
@@ -138,7 +168,8 @@ parse_config_file() {
 filter_all_songs() {
   local choice
   mapfile -t choice < <(mpc search -f "%file%\t$track_format" filename '' |
-    fzf --multi \
+    fzf --prompt='songs > ' \
+      --multi \
       --with-nth='2..' \
       --delimiter='\t' \
       --expect='f1,f2,f3,f4,enter' |
@@ -155,7 +186,7 @@ filter_all_songs() {
 filter_by_genre() {
   local choice
   mapfile -t choice < <(mpc search -f '%genre%' genre '' | awk 'NF' | sort | uniq -ic | sort -rn |
-    fzf \
+    fzf --prompt='genres > ' \
       --preview='mpc search -f "%artist%" genre {2..} | sort -u' \
       --bind="$findadd_key:execute:mpc findadd genre {2..}" \
       --expect='f1,f2,f3,f4,enter' | sed -r 's/^\s*[0-9]+\s*//')
@@ -175,8 +206,8 @@ filter_by_artist_from_genre() {
   genre="$1"
   mapfile -t choice < <(mpc search -f '%artist%' genre "$genre" | sort -u |
     awk 'NF' | sort -u |
-    fzf \
-      --preview="mpc search -f '%album%\t%title%' artist {} | awk -F'\t' '{ if(album != \$1) { album=\$1; print album } printf \"  %s\n\", \$2 }'" \
+    fzf --prompt="$genre > " \
+      --preview="$album_listing" \
       --expect='f1,f2,f3,f4,enter' \
       --bind="$findadd_key:execute:mpc findadd artist {}")
   (( ${#choice[@]} > 0 )) || filter_by_genre
@@ -193,8 +224,8 @@ filter_by_artist_from_genre() {
 filter_by_artist() {
   local choice
   mapfile -t choice < <(mpc list artist |
-    fzf \
-      --preview="mpc search -f '%album%\t%title%' artist {} | awk -F'\t' '{ if(album != \$1) { album=\$1; print album } printf \"  %s\n\", \$2 }'" \
+    fzf --prompt='artists > ' \
+      --preview="$album_listing" \
       --bind="$findadd_key:execute:mpc findadd artist {}" \
       --expect='f1,f2,f3,f4,enter')
   (( ${#choice[@]} > 0 )) || die
@@ -296,6 +327,7 @@ while :; do
     -A|--all) default_filter='filter_all_songs'; shift ;;
     -a|--artist) default_filter='filter_by_artist'; shift ;;
     -p|--playlist) default_filter='filter_by_playlist'; shift ;;
+    -g|--genre) default_filter='filter_by_genre'; shift ;;
     -h|--help) usage; exit ;;
     *) break
   esac

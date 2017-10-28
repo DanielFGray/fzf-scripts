@@ -15,6 +15,8 @@ OPTIONS:
     >   go to the next song in the playlist
     <   go to the previous song in the playlist
     C-d delete the selected songs from the playlist
+  -g --genre
+    list genres (or F4 when running)
   -h --help
     print this help
 
@@ -32,17 +34,10 @@ CONFIGURATION:
     For colorized output try:
     [[[\e\[32m%artist%\e\[0m / ][\e\[31m[(%date%) ]%album%\e\[0m / ][\e\[34m[%track% - ][%title%]\e\[0m]]|%file%]
   playlist_view_key
-    shows the playlist from any view
-    defaults to f1
   track_view_key
-    shows all tracks from any view
-    defaults to f2
   artist_view_key
-    shows artists from any view
-    defaults to f3
   genre_view_key
-    shows genres from any view
-    defaults to f4
+    allows customizing which keys fire the different views
   findadd_key
     adds all songs by artist/genre/album
     defaults to Ctrl-x

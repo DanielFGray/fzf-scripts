@@ -10,7 +10,7 @@ Lists or searches for files and opens them with a command, defaults to `vim`. Ki
 
 ## [fzgit](fzgit)
 
-Interactive git wrapper. Very much still a work in progress, but it has same very cool functions already.
+Interactive git wrapper. Very much still a work in progress, but it has some very cool functions already.
 
 *depends on `git` and `perl`*
 

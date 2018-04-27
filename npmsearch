@@ -71,14 +71,15 @@ search=$(jq -r '.[] | "\(.name)|\(.version)|\(.description)"' <<< "$search" | co
 
 mapfile -t packages < <(fzf --multi \
   --bind='ctrl-x:toggle-preview' \
-  --expect='ctrl-g,ctrl-d,enter,ctrl-v' \
+  --expect='ctrl-g,ctrl-d,enter,ctrl-v,esc' \
   --preview-window='hidden:down' \
   --preview="npm -s --json view {1} | jq -C \"del(.users, .time, .versions)\"" \
-  --header='C-d saves as devdependency, C-g installs globally, C-v for specific version, C-x for more info, ' \
-  <<< "$search" || exit 1)
+  --header='C-d saves as devDependency, C-g installs globally, C-v for specific version, C-x for more info, ' \
+  <<< "$search")
 
 key="${packages[0]}"
 case "${key,,}" in
+  esc) die 'cancelled' ;;
   ctrl-d) savedev=1 ;;
   ctrl-g) global=1 ;;
   ctrl-v)
@@ -86,31 +87,34 @@ case "${key,,}" in
     version=$(
       npm -s --json view "$package" |
         jq -r '.versions[]' |  # label with .dist-tags?
-        fzf --header="choose version for $package" --tac
-    )
-    packages=( "${package}@${version}" )
+        fzf --header="choose version for $package  |  C-d saves as devDependency" --tac --expect='ctrl-d,esc')
+    key="${version[0]}"
+    case "${key,,}" in
+      esc) die 'cancelled' ;;
+      ctrl-d) savedev=1 ;;
+    esac
+    packages=( "${package}@${version[1]}" )
     ;;
 esac
 
-if (( ${#packages[@]} > 0 )); then
-  if (( ${#packages[@]} > 1 )); then
-    packages=( "${packages[@]:1}" )
-    packages=( "${packages[@]%% *}" )
-  fi
-  printf "installing...\r"
-  if (( global > 0 )); then
-    npm install -g "${args[@]}" "${packages[@]}"
-  elif has yarn; then
-    (( savedev > 0 )) && args+=( -D )
-    yarn add "${args[@]}" "${packages[@]}"
-  else
-    if (( savedev > 0 )); then
-      args+=( -D )
-    else
-      args+=( -S )
-    fi
-    npm i "${args[@]}" "${packages[@]}"
-  fi
+(( ${#packages[@]} > 0 )) || die 'no packages to install'
+
+if (( ${#packages[@]} > 1 )); then
+  packages=( "${packages[@]:1}" )
+  packages=( "${packages[@]%% *}" )
+fi
+
+printf "installing...\r"
+if (( global > 0 )); then
+  npm install -g "${args[@]}" "${packages[@]}"
+elif has yarn; then
+  (( savedev > 0 )) && args+=( -D )
+  yarn add "${args[@]}" "${packages[@]}"
 else
-  exit 1
+  if (( savedev > 0 )); then
+    args+=( -D )
+  else
+    args+=( -S )
+  fi
+  npm i "${args[@]}" "${packages[@]}"
 fi

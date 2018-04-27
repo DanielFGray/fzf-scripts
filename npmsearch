@@ -64,6 +64,14 @@ fzf() {
   command fzf --inline-info --ansi --reverse +s --no-hscroll "$@"
 }
 
+if [[ $1 = '-r' || $1 = '--remove' ]]; then
+  mapfile -t rm < <(
+    jq -r '{dependencies, devDependencies} | .[] | keys | .[]' package.json |
+      fzf -m --cycle -e --reverse)
+    (( ${#rm} > 0 )) && $(select_from 'yarn remove' 'npm uninstall') "${rm[@]}"
+  die
+fi
+
 printf 'searching...\r'
 search=$(npm search --json "$*") || exit
 

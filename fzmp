@@ -9,13 +9,12 @@ OPTIONS:
     search all songs in the library (or F1 when running)
   -a --artist
     search artist then filter by album (or F2 when running)
-    
   -p --playlist
     search the current playlist (or F3 when running)
     playlist view has the following keybinds:
-    >   go to the next song in the playlist
-    <   go to the previous song in the playlist
-    C-d delete the selected songs from the playlist
+    >       go to the next song in the playlist
+    <       go to the previous song in the playlist
+    Ctrl-d  delete the selected songs from the playlist
   -g --genre
     list genres (or F4 when running)
   -h --help
@@ -34,23 +33,23 @@ CONFIGURATION:
     [[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]
     For colorized output try:
     [[[\e\[32m%artist%\e\[0m / ][\e\[31m[(%date%) ]%album%\e\[0m / ][\e\[34m[%track% - ][%title%]\e\[0m]]|%file%]
-  playlist_view_key
-  track_view_key
-  artist_view_key
-  genre_view_key
+  playlist_view_key (default F1)
+  track_view_key (default F2)
+  artist_view_key (default F3)
+  genre_view_key (default F4)
     allows customizing which keys fire the different views
   findadd_key
-    adds all songs by artist/genre/album
-    defaults to Ctrl-x
+    adds all songs under the cursor by artist/genre/album
+    defaults to ctrl-space
   fzf_options
     Command line options to be passed directly to fzf.
     Changing this will override the default options: +s -e -i --reverse --cycle
     To use the jump feature of fzf you can try:
     +s -e -i --reverse --cycle --bind=`:jump
-    or add this to your FZF_DEFAULT_OPTS
     It also helps to have a bind for toggle-all, e.g.
-    +s -e -i --reverse --cycle --bind=`:jump --bind="Ctrl-A:toggle-all"
-    This can also be overridden with the environment variable FZMP_FZF_OPTIONS
+    +s -e -i --reverse --cycle --bind=`:jump --bind="ctrl-t:toggle-all"
+    individual sessions also override with the environment variable FZMP_FZF_OPTIONS
+    fzmp will also inherit options from FZF_DEFAULT_OPTS
 HELP
 }
 
@@ -67,7 +66,7 @@ bindings=(
   [track]='f2'
   [artist]='f3'
   [genre]='f4'
-  [findadd]='ctrl-x'
+  [findadd]='ctrl-space'
 )
 
 do_binding() {
@@ -182,6 +181,7 @@ parse_config_file() {
     esac
   done < "$config_file"
   IFS=',' key_bindings="${bindings[*]}"
+  key_bindings="${key_bindings/,${bindings[findadd]}}"
   findadd_key="${bindings[findadd]}"
   if (( ${#config_err[@]} > 0 )); then
     err 'there were errors parsing config file:'
@@ -218,7 +218,7 @@ filter_by_genres() {
   (( ${#choice[@]} > 0 )) || die
   case "${choice[0]}" in
     enter) filter_by_artist_from_genre "${choice[1]}" ;;
-    *) do_binding "${choice[0]}" || exit ;;
+    *) do_binding "${choice[0]}" || "$default_filter" ;;
   esac
 }
 
@@ -272,7 +272,7 @@ filter_by_album_from_artist() {
 
 filter_songs_from_album() {
   local album artist choice
-  [[ -z "$1" || -z "$2" ]] && die
+  [[ -z "$1" || -z "$2" ]] && exit 999
   artist="$1"
   album="$2"
   mapfile -t choice < <(mpc search -f '%file%\t[[[%track% - ][%title%]]|%file%]' artist "${artist}" album "${album}" |
@@ -280,7 +280,7 @@ filter_songs_from_album() {
       --multi \
       --with-nth='2..' \
       --delimiter='\t' \
-      --expect='f1,f2,f3,enter' |
+      --expect="${key_bindings},enter" |
     cut -f1)
   case "${choice[0]}" in
     'enter') printf '%s\n' "${choice[@]:1}" | add_songs play ;;

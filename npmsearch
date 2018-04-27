@@ -8,7 +8,6 @@ declare global=0
 declare -A colors
 colors[red]=$(tput setaf 1)
 colors[green]=$(tput setaf 2)
-colors[blue]=$(tput setaf 4)
 colors[reset]=$(tput sgr0)
 
 color() {
@@ -26,7 +25,7 @@ die() {
 }
 
 has() {
-  local v=0
+  local v c
   if [[ $1 = '-v' ]]; then
     v=1
     shift
@@ -43,10 +42,7 @@ select_from() {
   local cmd='command -v'
   for a; do
     case "$a" in
-      -c)
-        cmd="$2"
-        shift 2
-        ;;
+      -c) cmd="$2"; shift 2 ;;
     esac
   done
   for c; do
@@ -72,7 +68,7 @@ if [[ $1 = '-r' || $1 = '--remove' ]]; then
   die
 fi
 
-printf 'searching...\r'
+printf '%ssearching...%s\r' "${colors[green]}" "${colors[reset]}"
 search=$(npm search --json "$*") || exit
 
 search=$(jq -r '.[] | "\(.name)|\(.version)|\(.description)"' <<< "$search" | column -t -s'|')
@@ -87,7 +83,7 @@ mapfile -t packages < <(fzf --multi \
 
 key="${packages[0]}"
 case "${key,,}" in
-  esc) die 'cancelled' ;;
+  esc) die ;;
   ctrl-d) savedev=1 ;;
   ctrl-g) global=1 ;;
   ctrl-v)
@@ -98,7 +94,7 @@ case "${key,,}" in
         fzf --header="choose version for $package  |  C-d saves as devDependency" --tac --expect='ctrl-d,esc')
     key="${version[0]}"
     case "${key,,}" in
-      esc) die 'cancelled' ;;
+      esc) die ;;
       ctrl-d) savedev=1 ;;
     esac
     packages=( "${package}@${version[1]}" )
@@ -112,7 +108,7 @@ if (( ${#packages[@]} > 1 )); then
   packages=( "${packages[@]%% *}" )
 fi
 
-printf "installing...\r"
+printf '%sinstalling...%s\r' "${colors[green]}" "${colors[reset]}"
 if (( global > 0 )); then
   npm install -g "${args[@]}" "${packages[@]}"
 elif has yarn; then

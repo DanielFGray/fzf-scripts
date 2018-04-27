@@ -88,7 +88,7 @@ debian() {
 arch() {
   local search packages
   search='pacman'
-  [[ -n "$1" ]] && search=$(select_from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
+  [[ -n "$1" ]] && search=$(select_from 'pacaur' 'trizen' 'yaourt' 'packer' 'apacman' 'pacman')
   packages=$(fzf --preview="$search -Si {2}" \
     < <( $search -Ss "$1" |
       gawk '{
@@ -114,8 +114,8 @@ void() {
 }
 
 fedora() {
-  fzf --preview='p={}; p="${p%% *}"; dnf -q info "${p%.*}"' \
-    < <(dnf -qC repoquery --qf "${c_green}%{name} ${c_reset}%{version} - %{summary}" \*) |
+  fzf --query="$*" --preview='p={}; p="${p%% *}"; dnf -q info "${p%.*}"' \
+    < <(dnf -qC repoquery --qf "${c_green}%{name} ${c_reset} - %{summary}" \*) |
     awk '{ package=$1; sub(/\.\S+/, "", package); print package }' |
     install 'sudo dnf install'
 }
@@ -144,3 +144,6 @@ case "$distro" in
   fedora) fedora "$request" ;;
   *) die 'unknown distro :(' ;;
 esac
+
+# TODO: homebrew: brew desc -s
+# sample output: https://pastebin.com/raw/3frRf6C7

@@ -63,7 +63,7 @@ for s in "${!domains[@]}"; do
   ssh "${domains[$s]}" "find ${paths[$s]}" | sed -r "s|^|${domains[$s]}:|" >> "$fifo" &
 done
 
-mapfile -t files < <( fzf -e --inline-info --multi --cycle --bind='Ctrl-A:toggle-all,`:jump' < "$fifo" )
+mapfile -t files < <(fzf -e --inline-info +s --multi --cycle --bind='Ctrl-A:toggle-all,`:jump' < "$fifo")
 
 if (( ${#files[@]} )); then
   rsync --protect-args -auvzP -e ssh "${files[@]}" .

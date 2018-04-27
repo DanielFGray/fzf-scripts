@@ -44,7 +44,7 @@ select_from() {
 
 has -v fzf || die
 
-helper=$(select_from 'pacaur' 'yaourt' 'packer' 'apacman' 'pacman')
+helper=$(select_from pacaur trizen packer apacman pacman)
 
 mapfile -t pkgs < <(
   $helper -Qu --color=always |

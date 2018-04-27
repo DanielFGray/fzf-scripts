@@ -7,21 +7,29 @@ colors[blue]=$(tput setaf 4)
 colors[reset]=$(tput sgr0)
 declare processes=4
 declare quiet
+declare force
 declare -a dirs
+declare -a ignore_dir
+declare -a ignore_dirs
+declare -a errs
 
 usage() {
   LESS=-FEXR less <<'HELP'
-gitup [dir] [OPTIONS]
+gitup [OPTIONS] [dirs]
 
 search for git repos and update them
 
 if unspecified, dir defaults to $HOME
 
--p [number]    how many processes to run git pull in parallel
--q             quiet level, may be stacked
-               first level suppresses output from `git pull`
-               second level suppresses job info
--h             print this help
+  -i [dir]       comma separated list of directory paths to not search
+  -p [number]    how many processes to run `git pull` in parallel
+  -q             quiet level, may be stacked
+                 first level suppresses output from `git pull`
+                 second level suppresses job info
+  -F             don't run interactively, `git pull` all dirs
+                 use with caution, make sure you know which dirs will be matched
+                 works best if gitup is provided a list of dirs known to have git repos
+  -h             print this help
 HELP
 }
 
@@ -29,9 +37,9 @@ color() {
   local c
   c="$1"
   shift
-  printf '%s' "${colors[$c]}" >&2
-  printf '%s\n' "$@" >&2
-  printf '%s' "${colors[reset]}" >&2
+  printf '%s' "${colors[$c]}"
+  printf '%s\n' "$@"
+  printf '%s' "${colors[reset]}"
 }
 
 err() {
@@ -59,11 +67,13 @@ has() {
 
 has -v fzf git || die
 
-while getopts ":hqp:" x; do
+while getopts ':hqp:i:F' x; do o="$OPTARG"
   case "$x" in
     h) usage; exit; ;;
-    p) processes="$OPTARG" ;;
-    q) (( quiet++ )) ;;
+    p) processes="$o" ;;
+    q) (( ++quiet )) ;;
+    i) IFS=',' read -ra ignore_dir <<< "$o" ;;
+    F) (( ++force )) ;;
   esac
 done
 shift $(( OPTIND - 1 ))
@@ -75,10 +85,19 @@ while :; do
   shift || break
 done
 
+for o in "${ignore_dir[@]}"; do
+  ignore_dirs+=( -path "*/$o" -o  )
+done
+
 (( ${#dirs[@]} > 0 )) || dirs=("$HOME")
 
-mapfile -t repos < <(find -L "${dirs[@]}" -name '.git' -printf '%h\n' 2> /dev/null \
-  | fzf --multi --cycle --inline-info)
+mapfile -t repos < <(find "${dirs[@]}"  \
+  \( "${ignore_dirs[@]}" \
+    -fstype 'devfs' \
+    -o -fstype 'devtmpfs' \
+    -o -fstype 'proc' \
+  \) -prune -o -name '.git' -printf '%h\n' 2> /dev/null |
+  fzf --multi --cycle --inline-info +s -e ${force:+-f /})
 
 (( ${#repos[@]} > 0 )) || exit
 
@@ -90,7 +109,7 @@ update() {
   if git -C "$dir" pull ${quiet:+-q}; then
     (( quiet > 1 )) || color green ":: updated $name"
   else
-    color red ":: failed to update $name"
+    errs+=( "$name" )
   fi
 }
 
@@ -100,4 +119,8 @@ for d in "${repos[@]}"; do
 done
 wait
 
-printf '%d repos updated\n' "${#repos[@]}"
+if (( "${#errs[@]}" > 0 )); then
+  color red 'The following packages failed to update:'
+  color red "  ${errs[*]}"
+fi
+color green "updated ${#repos[@]} repos"

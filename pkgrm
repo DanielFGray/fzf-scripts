@@ -25,7 +25,25 @@ die() {
   exit 1
 }
 
-has -v fzf || die
+select_from() {
+  local o c cmd OPTARG OPTIND
+  cmd='command -v'
+  while getopts 'c:' o; do
+    case "$o" in
+      c) cmd="$OPTARG" ;;
+    esac
+  done
+  shift "$((OPTIND-1))"
+  for c; do
+    if $cmd "${c%% *}" &> /dev/null; then
+      echo "$c"
+      return 0
+    fi
+  done
+  return 1
+}
+
+has -v fzf expac || die
 
 fzf() {
   command fzf -e --multi --no-hscroll --inline-info --cycle --bind='Ctrl-a:toggle-all' "$@"
@@ -40,10 +58,12 @@ if (( $# > 0 )); then
   exit
 fi
 
+preview=$(select_from pacaur pacman)
+
 if (( by_size )); then
-  mapfile -t pkgs < <(expac -H M '%m\t%n' | sort -hr | fzf --preview='pacman -Si {3}' -q '!^lib ' | cut -f2)
+  mapfile -t pkgs < <(expac -H M '%m\t%n' | sort -hr | fzf +s --preview="$preview --color=always -Si {3}" -q '!^lib ' | cut -f2)
 else
-  mapfile -t pkgs < <(expac '%n' | fzf --preview='pacman -Si {1}' -q '!^lib ' | cut -d' ' -f1)
+  mapfile -t pkgs < <(expac '%n' | fzf +s --preview="$preview --color=always -Si {1}" -q '!^lib ' | cut -d' ' -f1)
 fi
 
 (( ${#pkgs[@]} > 0 )) && sudo pacman -Rcusn "${pkgs[@]}"

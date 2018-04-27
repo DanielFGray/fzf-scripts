@@ -106,7 +106,10 @@ list_pastes() {
   if [[ -n "$url" ]]; then
     mapfile -t res <<< "$url"
     if [[ "${res[0]}" = 'Ctrl-D' ]]; then
-      ix -d "${res[1]}"
+      id="${res[1]}"
+      id="${id#*ix.io/}"
+      id="${id%%$'\t'*}"
+      ix -d "$id"
       list_pastes
       exit
     fi
@@ -125,7 +128,8 @@ while getopts ":hld:i:n:" x; do
     d) curl -s "${opts[@]}" -X DELETE "$OPTARG"; exit ;;
     l)
       if [[ -e ~/.netrc ]]; then
-        list_pastes | cut -d' ' -f1 | xclip
+        url=$(list_pastes)
+        [[ -n "$url" ]] && cut -f1 <<< "$url" | tee | xclip
       else
         die 'no netrc found'
       fi

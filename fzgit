@@ -41,7 +41,13 @@ fzf() { # {{{
     shift
   fi
   branch=$(git status 2> /dev/null | sed 's/On branch />/;q')
-  command fzf --inline-info --ansi --cycle --prompt="fzgit${branch}>${prompt} " "$@"
+  opts=( +s -e -i --reverse --cycle --prompt="fzgit${branch}>${prompt} " )
+  [[ -v FZMP_FZF_OPTIONS ]] && opts=( $FZMP_FZF_OPTIONS )
+  command fzf "${opts[@]}" \
+    --inline-info \
+    --ansi \
+    --no-clear \
+    "$@"
 }
 # }}}
 
@@ -192,7 +198,6 @@ declare -A implemented_git_cmds=(
 git_log() { # {{{
   local show="git show --color=always \"\$(grep -m1 -o \"[a-f0-9]\{7\}\" <<< {})\""
   fzf --prompt='log' -e --no-sort --tiebreak=index \
-    --preview-window=up \
     --bind="enter:execute:$show | less -R" \
     --preview="$show" \
   < <(git log --graph --color=always \
@@ -276,4 +281,13 @@ main() {
   done
 }
 
+reset_screen() {
+  tput rmcup
+}
+
+finish() {
+  reset_screen
+}
+
+trap finish EXIT SIGINT SIGTERM
 main

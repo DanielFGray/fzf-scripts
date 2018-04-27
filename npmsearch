@@ -58,35 +58,48 @@ select_from() {
   return 1
 }
 
-has -v fzf || die
+has -v fzf npm || die
 
-npm=$(select_from npm5 npm) || die 'npm not found'
+fzf() {
+  command fzf --inline-info --ansi --reverse +s --no-hscroll "$@"
+}
 
 printf 'searching...\r'
-search=$($npm search --json "$*") || exit
+search=$(npm search --json "$*") || exit
 
 search=$(jq -r '.[] | "\(.name)|\(.version)|\(.description)"' <<< "$search" | column -t -s'|')
 
-mapfile -t packages < <(fzf --inline-info --multi --ansi --reverse \
-  --bind='Ctrl-X:toggle-preview' \
-  --expect='Ctrl-g,Ctrl-d,enter' \
+mapfile -t packages < <(fzf --multi \
+  --bind='ctrl-x:toggle-preview' \
+  --expect='ctrl-g,ctrl-d,enter,ctrl-v' \
   --preview-window='hidden:down' \
-  --preview="$npm -s --json view {1} | jq -C \"del(.users, .time, .versions)\"" \
-  --header='Ctrl-D saves as dev-dependency, Ctrl-G installs globally, Ctrl-X for extra info, tab to select multiple' \
+  --preview="npm -s --json view {1} | jq -C \"del(.users, .time, .versions)\"" \
+  --header='C-d saves as devdependency, C-g installs globally, C-v for specific version, C-x for more info, ' \
   <<< "$search" || exit 1)
 
 key="${packages[0]}"
 case "${key,,}" in
   ctrl-d) savedev=1 ;;
   ctrl-g) global=1 ;;
+  ctrl-v)
+    package="${packages[1]%% *}"
+    version=$(
+      npm -s --json view "$package" |
+        jq -r '.versions[]' |  # label with .dist-tags?
+        fzf --header="choose version for $package" --tac
+    )
+    packages=( "${package}@${version}" )
+    ;;
 esac
 
-mapfile -t packages < <(printf '%s\n' "${packages[@]:1}" | cut -d' ' -f1)
-
-printf "installing...\r"
 if (( ${#packages[@]} > 0 )); then
+  if (( ${#packages[@]} > 1 )); then
+    packages=( "${packages[@]:1}" )
+    packages=( "${packages[@]%% *}" )
+  fi
+  printf "installing...\r"
   if (( global > 0 )); then
-    $npm install -g "${args[@]}" "${packages[@]}"
+    npm install -g "${args[@]}" "${packages[@]}"
   elif has yarn; then
     (( savedev > 0 )) && args+=( -D )
     yarn add "${args[@]}" "${packages[@]}"
@@ -96,7 +109,7 @@ if (( ${#packages[@]} > 0 )); then
     else
       args+=( -S )
     fi
-    $npm i "${args[@]}" "${packages[@]}"
+    npm i "${args[@]}" "${packages[@]}"
   fi
 else
   exit 1

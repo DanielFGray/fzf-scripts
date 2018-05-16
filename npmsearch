@@ -107,7 +107,7 @@ case "${key,,}" in
   ctrl-g) global=1 ;;
   ctrl-v)
     package="${packages[1]%% *}"
-    version=$(
+    mapfile -t version < <(
       npm -s --json view "$package" |
         jq -r '.versions[]' |  # label with .dist-tags?
         fzf --header="choose version for $package  |  C-d saves as devDependency" --tac --expect='ctrl-d,esc')

@@ -80,9 +80,10 @@ if [[ $1 = '-h' || $1 = '--help' ]]; then
 fi
 
 if [[ $1 = '-r' || $1 = '--remove' ]]; then
+  shift
   mapfile -t rm < <(
     jq -r '{dependencies, devDependencies} | .[] | keys | .[]' package.json |
-      fzf -m --cycle -e --reverse)
+      fzf -m --cycle -e --reverse --query="$*")
     (( ${#rm} > 0 )) && $(select_from 'yarn remove' 'npm uninstall') "${rm[@]}"
   die
 fi

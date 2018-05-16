@@ -10,6 +10,20 @@ colors[red]=$(tput setaf 1)
 colors[green]=$(tput setaf 2)
 colors[reset]=$(tput sgr0)
 
+usage() {
+  LESS=-FEXR less <<-HELP
+npmsearch [options] [packages]
+  searches npm for packages
+
+  -r, --remove
+    list and remove packages from package.json
+
+to increase the amount of packages shown when searching, try:
+  npm config set searchlimit 40
+
+HELP
+}
+
 color() {
   local color="$1"; shift
   printf '%s' "${colors[$color]}"
@@ -59,6 +73,11 @@ has -v fzf npm || die
 fzf() {
   command fzf --inline-info --ansi --reverse +s --no-hscroll "$@"
 }
+
+if [[ $1 = '-h' || $1 = '--help' ]]; then
+  usage
+  exit
+fi
 
 if [[ $1 = '-r' || $1 = '--remove' ]]; then
   mapfile -t rm < <(

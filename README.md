@@ -42,6 +42,8 @@ Searches [npmjs.com](https://npmjs.com) and installs packages with `yarn` if ava
 
 *depends on npm and [jq](https://stedolan.github.io/jq/)*
 
+* [Demo](https://asciinema.org/a/178602)
+
 ## [pkgsearch](pkgsearch)
 
 Searches repos and installs multiple packages. Currently works with Debian, Ubuntu and Arch, and experimental support for Fedora and Void.

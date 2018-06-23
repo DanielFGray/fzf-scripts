@@ -180,7 +180,7 @@ fi
 
 main() {
   choices=$($search_cmd "${search_opts[@]}" 2> /dev/null |
-  fzf -e --ansi --cycle --multi --reverse ${small:+--reverse --height=50%}) || exit 1
+    fzf --ansi --multi --preview='[[ $(file -b {}) = *text* ]] && highlight -q --force -O ansi {}') || exit 1
 
   if [[ "$search_str" != '' ]]; then
     if [[ $search_cmd == 'ag' ]]; then

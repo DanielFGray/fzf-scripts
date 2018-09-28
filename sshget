@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-##Modified version of
-#https://github.com/SidOfc/dotfiles/zsh/sshet
+##Modified version of 
+#https://github.com/DanielFGray/fzf-scripts
 #https://github.com/junegunn/fzf/issues/876 FZF delim change example using keybind script.
 #Ref https://github.com/junegunn/fzf/commit/131aa5dd15788875e796bbd2f2bfdf644584284a for the fzf keybinding with two commands (run the subsscript + accept output)
 declare -r esc=$'\033'

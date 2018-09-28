@@ -3,6 +3,19 @@
 #https://github.com/DanielFGray/fzf-scripts
 #https://github.com/junegunn/fzf/issues/876 FZF delim change example using keybind script.
 #Ref https://github.com/junegunn/fzf/commit/131aa5dd15788875e796bbd2f2bfdf644584284a for the fzf keybinding with two commands (run the subsscript + accept output)
+# This was included in my zsh conf, takes a remote path as input and starts ssh get on that path, fills results into buffer.
+# sshget (){
+#   # BUFFER=""\
+#   a="$(/path/to/sshget $BUFFER)"
+#   zle -R;
+#   BUFFER="$a";
+#   zle end-of-line
+# }
+# zle -N sshget
+# bindkey "^]" sshget
+##So the idea is host:/remote/folder/ + hotkey -> select files or multiple files -> check the resulting output and run.
+
+
 declare -r esc=$'\033'
 declare -r c_reset="${esc}[0m"
 declare -r c_red="${esc}[31m"

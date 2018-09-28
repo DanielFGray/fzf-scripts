@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-
+##Modified version of
+#https://github.com/SidOfc/dotfiles/zsh/sshet
+#https://github.com/junegunn/fzf/issues/876 FZF delim change example using keybind script.
+#Ref https://github.com/junegunn/fzf/commit/131aa5dd15788875e796bbd2f2bfdf644584284a for the fzf keybinding with two commands (run the subsscript + accept output)
 declare -r esc=$'\033'
 declare -r c_reset="${esc}[0m"
 declare -r c_red="${esc}[31m"
@@ -60,13 +63,44 @@ for a; do
 done
 
 for s in "${!domains[@]}"; do
-  ssh "${domains[$s]}" "find ${paths[$s]}" | sed -r "s|^|${domains[$s]}:|" >> "$fifo" &
+  #Orig -- prob b/c find is everywhere
+  # ssh "${domains[$s]}" "find ${paths[$s]}" | sed -r "s|^|${domains[$s]}:|" >> "$fifo" &
+  #Attempt /w ripgrep,
+  # ssh "${domains[$s]}" "rg --files ${paths[$s]}" | sed -r "s|^|${domains[$s]}:|" >> "$fifo" &
+  #Using FD (https://github.com/sharkdp/fd)
+  ssh "${domains[$s]}" "fd . ${paths[$s]} --exclude .git" | sed -r "s|^|${domains[$s]}:|" >> "$fifo" &
+  #Using FD limiting to DIRS
+  # ssh "${domains[$s]}" "fd . ${paths[$s]} --type d" | sed -r "s|^|${domains[$s]}:|" >> "$fifo" &
+  # Added a bunch of sed find and replaces for special characters, super ugly as both a way of getting to the goal but also implimentation (can combine sed)
+  # ssh "${domains[$s]}" "fd . ${paths[$s]} --exclude .git -x echo \"{}\"" | sed -r "s|^|${domains[$s]}:|" | sed -r 's| |\\ |g' | sed -r 's|\(|\\(|g' | sed -r 's|\)|\\)|g'   | sed -r 's|\[|\\[|g' | sed -r 's|\]|\\]|g' | sed -r 's|\;|\\;|g' >> "$fifo" &
 done
 
-mapfile -t files < <(fzf -e --inline-info +s --multi --cycle --bind='Ctrl-A:toggle-all,`:jump' < "$fifo")
+# #######  Way:1 Results in double quotes around each path
+# mapfile -t files < <(fzf -e --inline-info +s  --multi --cycle  --bind "ENTER:execute-multi(python -c 'import sys; print \",\".join(sys.argv[1:])' {})+accept" < "$fifo")
+# if (( ${#files[@]} )); then
+#   IFS=",";
+#   d=''
+#   for c in  ${files[@]}
+#   do
+#     d+=" \"$c\""
+#   done
+#   CURSOR="rsync --protect-args -auvzP -e ssh $d ."
+#   echo $CURSOR
+# fi
 
+#######  Way:2 results in single quotes around each path (probably uses shell instead of python, but works)
+mapfile -t files < <(fzf -e --inline-info +s  --multi --cycle  --bind "ENTER:execute-multi(echo \"{}\")+accept" < "$fifo")
 if (( ${#files[@]} )); then
-  rsync --protect-args -auvzP -e ssh "${files[@]}" .
+  CURSOR="rsync --protect-args -auzP --append-verify --inplace -e ssh $files ."
+  echo $CURSOR
 fi
+
+# #######  Way:3 Results single quotes this is just a mental bridge between 1 and 2
+#
+# mapfile -t files < <(fzf -e --inline-info +s  --multi --cycle  --bind "enter:execute-multi(python -c 'import sys; print \"  \".join(sys.argv[1:])' \"{}\")+accept" < "$fifo")
+# if (( ${#files[@]} )); then
+#   CURSOR="rsync --protect-args -auvzP -e ssh $files ."
+#   echo $CURSOR
+# fi
 
 cleanup

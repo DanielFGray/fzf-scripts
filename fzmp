@@ -209,10 +209,10 @@ filter_by_songs() {
 filter_by_genres() {
   local choice
   mapfile -t choice < <(mpc search -f '%genre%' genre '' |
-    awk 'NF' | sort | uniq -ic | sort -rn |
+    awk 'NF' | sort | uniq -c | sort -rn |
     fzf --prompt='genres > ' \
       --preview='mpc search -f "%artist%" genre {2..} | sort -u' \
-      --bind="$findadd_key:execute-silent:mpc findadd genre {2..}" \
+      --bind="${bindings[findadd]}:execute-silent:mpc findadd genre {2..}" \
       --expect="${key_bindings},enter" |
     sed -r 's/^\s*[0-9]+\s*//')
   (( ${#choice[@]} > 0 )) || die
@@ -230,7 +230,7 @@ filter_by_artist_from_genre() {
     fzf --prompt="$genre > " \
       --preview="$album_listing" \
       --expect="${key_bindings},enter" \
-      --bind="$findadd_key:execute-silent:mpc findadd artist {}")
+      --bind="${bindings[findadd]}:execute-silent:mpc findadd artist {}")
   (( ${#choice[@]} > 0 )) || filter_by_genres
   case "${choice[0]}" in
     enter) filter_by_album_from_artist "${choice[1]}" ;;
@@ -243,7 +243,7 @@ filter_by_artists() {
   mapfile -t choice < <(mpc list artist |
     fzf --prompt='artists > ' \
       --preview="$album_listing" \
-      --bind="$findadd_key:execute-silent:mpc findadd artist {}" \
+      --bind="${bindings[findadd]}:execute-silent:mpc findadd artist {}" \
       --expect="${key_bindings},enter")
   (( ${#choice[@]} > 0 )) || die
   case "${choice[0]}" in
@@ -261,7 +261,7 @@ filter_by_album_from_artist() {
     fzf --prompt="$artist > " \
       --preview="mpc search -f '[[[%track% - ][%title%]]|%file%]' artist '$artist' album {2}" \
       --expect="${key_bindings},enter" \
-      --bind="$findadd_key:execute-silent:mpc findadd album {2..}" \
+      --bind="${bindings[findadd]}:execute-silent:mpc findadd album {2..}" \
       --delimiter='\t' |
       cut -f2)
   case "${choice[0]}" in

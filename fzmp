@@ -48,7 +48,7 @@ CONFIGURATION:
     +s -e -i --reverse --cycle --bind=`:jump
     It also helps to have a bind for toggle-all, e.g.
     +s -e -i --reverse --cycle --bind=`:jump --bind="ctrl-t:toggle-all"
-    individual sessions also override with the environment variable FZMP_FZF_OPTIONS
+    individual sessions can override with the environment variable FZMP_FZF_OPTIONS
     fzmp will also inherit options from FZF_DEFAULT_OPTS
 HELP
 }
@@ -73,7 +73,6 @@ do_binding() {
   local b
   b=$(action_from_keybind "$1")
   shift
-  echo "$b"
   case "$b" in
     playlist) filter_by_playlist ;;
     track) filter_by_songs ;;
@@ -180,9 +179,6 @@ parse_config_file() {
       *) config_err+=( "unknown key \"$key\" in config file on line $nr" )
     esac
   done < "$config_file"
-  IFS=',' key_bindings="${bindings[*]}"
-  key_bindings="${key_bindings/,${bindings[findadd]}}"
-  findadd_key="${bindings[findadd]}"
   if (( ${#config_err[@]} > 0 )); then
     err 'there were errors parsing config file:'
     for e in "${config_err[@]}"; do
@@ -321,7 +317,10 @@ add_songs() {
   filter_by_playlist
 }
 
-[[ -s "$config_file" ]] && parse_config_file
+parse_config_file
+IFS=',' key_bindings="${bindings[*]}"
+key_bindings="${key_bindings/,${bindings[findadd]}}"
+findadd_key="${bindings[findadd]}"
 
 while :; do
   case "$1" in

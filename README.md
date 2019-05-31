@@ -14,6 +14,10 @@ Interactive git wrapper. Very much still a work in progress, but it has some ver
 
 *depends on `git` and `perl`*
 
+## [fzbuku](fzbuku)
+
+A small wrapper around [buku](https://github.com/jarun/Buku) to search bookmarks
+
 ## [fzmp](fzmp)
 
 Lists and searches for songs in an MPD library by artist, album, or playlist. I wrote a [blog post](https://danielfgray.gitlab.io/computers/fzmp) about writing this script.

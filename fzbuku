@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+_video() {
+  x-terminal-emulator -t mpv -e "mpv '$1'"
+}
+export -f _video
+
+_open() {
+  case $1 in
+    *youtube.com*) _video "$1" ;;
+    *youtu.be*) _video "$1" ;;
+    *vimeo.com*) _video "$1" ;;
+    *) x-www-browser "$1" ;;
+  esac
+}
+export -f _open
+
+printf -v jq '.[] | "\(.index) \(.uri) %s\(.tags)%s \(.title)"' "$(tput setaf 7)" "$(tput sgr0)"
+
+main() {
+  local choice=()
+  mapfile -t choice < <(buku -p -j |
+    jq -r "$jq" |
+    SHELL=bash fzf \
+    --ansi \
+    --tac \
+    --bind='enter:execute: _open {2}' \
+    --expect='ctrl-d,ctrl-e' \
+    --delimiter=' ' \
+    --height=100% \
+    --no-hscroll \
+    --preview-window=down \
+    --preview='buku -p {1}; w3m {2}' \
+    --query="$*" \
+    --with-nth=3..)
+
+  selection=${choice[@]:1}
+
+  case ${choice[0]} in
+    ctrl-d)
+      buku -d ${selection[0]%% *}
+      main
+      ;;
+    ctrl-e)
+      buku -w ${selection[0]%% *}
+      main
+      ;;
+  esac
+}
+
+main "$*"

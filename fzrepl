@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+declare cmd
+declare default_query
+declare stdin
+declare output
+
+OPTERR=0
+while getopts ':q:c:' opt; do
+  case "$opt" in
+    q) default_query="$OPTARG" ;;
+    c) cmd="$OPTARG" ;;
+  esac
+done
+shift $(( OPTIND - 1 ))
+unset opt OPTARG OPTIND
+
+if [[ -z $cmd || $cmd != *'{q}'* ]]; then
+  echo '-c must be set and contain  {q}  somewhere'
+  exit
+fi
+
+echo $default_query
+
+stdin=$(< /dev/stdin)
+
+output=$(fzf \
+  --print-query \
+  --query="$default_query" \
+  --preview="$cmd <<< '$stdin'" \
+  --preview-window='up:99%' \
+  < /dev/null)
+
+echo "${cmd//\{q\}/\'$output\'}"

@@ -1,34 +1,71 @@
 #!/usr/bin/env bash
 
+# TODO: usage eg `fzrepl 'foo {q}' -q 'bar' file`
+
+# TODO: docs!
+#  --help
+#  eg  fzrepl 'node -e {q}' -q 'process.stdin.on('data', x => console.log(x.toString()))'
+
+declare tmpfile=/tmp/fzreplinput
 declare cmd
 declare default_query
-declare stdin
 declare output
 
-OPTERR=0
-while getopts ':q:c:' opt; do
-  case "$opt" in
-    q) default_query="$OPTARG" ;;
-    c) cmd="$OPTARG" ;;
-  esac
-done
-shift $(( OPTIND - 1 ))
-unset opt OPTARG OPTIND
+declare -A colors
+colors[red]=$(tput setaf 1)
+colors[green]=$(tput setaf 2)
+colors[reset]=$(tput sgr0)
 
-if [[ -z $cmd || $cmd != *'{q}'* ]]; then
-  echo '-c must be set and contain  {q}  somewhere'
-  exit
+cleanup() {
+  [[ -e "$tmpfile" ]] && rm "$tmpfile"
+}
+trap cleanup SIGHUP SIGINT SIGTERM
+
+color() {
+  local color
+  color="$1"; shift
+  printf '%s' "${colors[$color]}" "$*" "${colors[reset]}"
+}
+
+err() {
+  color red "$@" >&2
+  return 1
+}
+
+die() {
+  (( $# > 0 )) && err "$@"
+  exit 1
+}
+
+for arg; do
+  case $arg in
+    -q|--query)
+      [[ -z $2 || $2 = -* ]] && die "missing argument to $1"
+      default_query="$2"
+      shift ;;
+    -c|--cmd)
+      [[ -z $2 || $2 = -* ]] && die "missing argument to $1"
+      cmd="$2"
+      shift ;;
+    *) remaining+=( "$1" )
+  esac
+  shift
+done
+
+if [[ -z $cmd && -n ${remaining[0]} ]]; then
+  cmd="${remaining[0]}"
 fi
 
-echo $default_query
+# TODO: if [[ -n $1 && -f $1 ]]; stdin=$(<$1); shift; fi
 
-stdin=$(< /dev/stdin)
+if [[ -z $cmd || $cmd != *'{q}'* ]]; then
+  echo 'command must be set and contain  {q}  somewhere'
+  exit 1
+fi
 
-output=$(fzf \
+tee "$tmpfile" < /dev/stdin | fzf \
+  --height=100% \
+  --phony \
   --print-query \
   --query="$default_query" \
-  --preview="$cmd <<< '$stdin'" \
-  --preview-window='up:99%' \
-  < /dev/null)
-
-echo "${cmd//\{q\}/\'$output\'}"
+  --preview="$cmd < '$tmpfile'"

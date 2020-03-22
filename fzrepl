@@ -1,10 +1,25 @@
 #!/usr/bin/env bash
 
+usage() {
+  less -FEXR <<'HELP'
+fzrepl
+  interactively edit stdin using stream filters like awk, sed, jq
+
+  -c, --cmd    command used to filter input
+  -q, --query  default command string to use
+
+examples:
+  echo 'foo bar' | fzrepl -c 'awk {q}' -q '{print $1}'
+  echo 'hello world' | fzrepl 'sed -n {q}' -q p
+  fzrepl 'jq {q}' 
+HELP
+}
+
 # TODO: usage eg `fzrepl 'foo {q}' -q 'bar' file`
 
 # TODO: docs!
 #  --help
-#  eg  fzrepl 'node -e {q}' -q 'process.stdin.on('data', x => console.log(x.toString()))'
+#  eg  fzrepl 'node -e {q}' -q "f = data => data.flatMap(a => a.threads);\nlet A='';process.stdin.on('data',x=>A=A.concat(x.toString())).on('end',()=>process.stdout.write(JSON.stringify(f(JSON.parse(A)),null,2)))"
 
 declare tmpfile=/tmp/fzreplinput
 declare cmd
@@ -42,30 +57,43 @@ for arg; do
     -q|--query)
       [[ -z $2 || $2 = -* ]] && die "missing argument to $1"
       default_query="$2"
-      shift ;;
+      shift 2 ;;
     -c|--cmd)
       [[ -z $2 || $2 = -* ]] && die "missing argument to $1"
       cmd="$2"
-      shift ;;
-    *) remaining+=( "$1" )
+      shift 2 ;;
+    -h|--help) usage; exit ;;
+    *) break 2;
   esac
-  shift
 done
 
-if [[ -z $cmd && -n ${remaining[0]} ]]; then
-  cmd="${remaining[0]}"
+if [[ -z $cmd && -n $1 && ! -f $1 ]]; then
+  cmd="$1"
+  shift
 fi
 
-# TODO: if [[ -n $1 && -f $1 ]]; stdin=$(<$1); shift; fi
+[[ -n $cmd && $cmd = *'{q}'* ]] || {
+  die 'command must be set and contain  {q}  somewhere'
+}
 
-if [[ -z $cmd || $cmd != *'{q}'* ]]; then
-  echo 'command must be set and contain  {q}  somewhere'
-  exit 1
+if [[ -n $1 && -f $1 ]]; then
+  file=$1
+  shift
 fi
 
-tee "$tmpfile" < /dev/stdin | fzf \
-  --height=100% \
-  --phony \
-  --print-query \
-  --query="$default_query" \
-  --preview="$cmd < '$tmpfile'"
+if [[ -z $file ]]; then
+  file=/dev/stdin
+fi
+
+mapfile -t REPLY < <(
+  tee "$tmpfile" < "$file" | fzf \
+    --height=100% \
+    --phony \
+    --print-query \
+    --query="$default_query" \
+    --preview="$cmd < '$tmpfile'"
+)
+
+q="${REPLY[0]}"
+q=${q@Q}
+printf '%s\n' "${cmd//'{q}'/$q}"

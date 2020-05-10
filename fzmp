@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
+declare -r config_file="${XDG_CONFIG_DIR:-$HOME/.config}/fzmp/conf"
+
 usage() {
-  LESS=-FEXR less <<'HELP'
+  LESS=-FEXR less <<HELP
 fzmp [OPTIONS]
 
 OPTIONS:
@@ -21,18 +23,18 @@ OPTIONS:
     print this help
 
 CONFIGURATION:
-  A configuration file can be defined at $XDG_CONFIG_DIR (defaults to ~/.config)
+  A configuration file can be defined at $config_file
   If a line begins with '#' it is treated as a comment and ignored
   The configuration file reads the following options:
 
   default_view
     Must be 'artists' 'songs' 'playlist' or 'genres'
   full_song_format
-    A format string to be passed directly to `mpc format -f` in
+    A format string to be passed directly to \`mpc format -f\` in
     'playlist' and 'all' views. Defaults to:
     [[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]
     For colorized output try:
-    [[[\e\[32m%artist%\e\[0m / ][\e\[31m[(%date%) ]%album%\e\[0m / ][\e\[34m[%track% - ][%title%]\e\[0m]]|%file%]
+    [[[\\e\\[32m%artist%\\e\\[0m / ][\\e\\[31m[(%date%) ]%album%\\e\\[0m / ][\\e\\[34m[%track% - ][%title%]\\e\\[0m]]|%file%]
   playlist_view_key (default F1)
   track_view_key (default F2)
   artist_view_key (default F3)
@@ -45,15 +47,14 @@ CONFIGURATION:
     Command line options to be passed directly to fzf.
     Changing this will override the default options: +s -e -i --reverse --cycle
     To use the jump feature of fzf you can try:
-    +s -e -i --reverse --cycle --bind=`:jump
+    +s -e -i --reverse --cycle --bind=\`:jump
     It also helps to have a bind for toggle-all, e.g.
-    +s -e -i --reverse --cycle --bind=`:jump --bind="ctrl-t:toggle-all"
+    +s -e -i --reverse --cycle --bind=\`:jump --bind="ctrl-t:toggle-all"
     individual sessions can override with the environment variable FZMP_FZF_OPTIONS
     fzmp will also inherit options from FZF_DEFAULT_OPTS
 HELP
 }
 
-declare -r config_file="${XDG_CONFIG_DIR:-$HOME/.config}/fzmp/conf"
 declare default_filter='filter_by_playlist'
 declare track_format='[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
 declare -r album_listing="mpc search -f '%album%\t%title%' artist {} | awk -F'\t' '{ if(album != \$1) { album=\$1; print album } printf \"  %s\n\", \$2 }'"

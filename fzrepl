@@ -9,17 +9,14 @@ fzrepl
   -q, --query  default command string to use
 
 examples:
-  echo 'foo bar' | fzrepl -c 'awk {q}' -q '{print $1}'
-  echo 'hello world' | fzrepl 'sed -n {q}' -q p
-  fzrepl 'jq {q}' 
+  echo 'foo bar' | fzrepl -c 'awk {q}' -q '{print}'
+  echo 'hello world' | fzrepl -q p 'sed -n {q}'
+  fzrepl 'jq {q}' package.json
 HELP
 }
 
-# TODO: usage eg `fzrepl 'foo {q}' -q 'bar' file`
-
-# TODO: docs!
-#  --help
-#  eg  fzrepl 'node -e {q}' -q "f = data => data.flatMap(a => a.threads);\nlet A='';process.stdin.on('data',x=>A=A.concat(x.toString())).on('end',()=>process.stdout.write(JSON.stringify(f(JSON.parse(A)),null,2)))"
+# TODO: better "wrapping", this is painful:
+# fzrepl 'node -e {q}' -q "done = data => data;\nlet A='';process.stdin.on('data',x=>A=A.concat(x.toString())).on('end',()=>{let d = done(A);process.stdout.write(`${String.prototype.trim.call(typeof d==='string'?d:JSON.stringify(d,null,2))}\n`)})"
 
 declare tmpfile=/tmp/fzreplinput
 declare cmd
@@ -72,9 +69,9 @@ if [[ -z $cmd && -n $1 && ! -f $1 ]]; then
   shift
 fi
 
-[[ -n $cmd && $cmd = *'{q}'* ]] || {
-  die 'command must be set and contain  {q}  somewhere'
-}
+if [[ $cmd != *'{q}'* ]]; then
+  cmd+=' {q}'
+fi
 
 if [[ -n $1 && -f $1 ]]; then
   file=$1
@@ -96,4 +93,4 @@ mapfile -t REPLY < <(
 
 q="${REPLY[0]}"
 q=${q@Q}
-printf '%s\n' "${cmd//'{q}'/$q}"
+echo "${cmd//'{q}'/$q}"

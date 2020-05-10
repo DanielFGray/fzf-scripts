@@ -57,7 +57,7 @@ HELP
 
 declare default_filter='filter_by_playlist'
 declare track_format='[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
-declare -r album_listing="mpc search -f '%album%\t%title%' artist {} | awk -F'\t' '{ if(album != \$1) { album=\$1; print album } printf \"  %s\n\", \$2 }'"
+declare -r album_listing="mpc search -f '%album%\t%track%\t%title%' artist {} | awk -F'\t' '{ if(album != \$1) { album=\$1; print album } printf \"  %2d. %s\n\", \$2, \$3 }'"
 declare -a config_err
 
 declare key_bindings

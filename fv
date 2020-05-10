@@ -179,8 +179,10 @@ if [[ "$search_str" != '' ]]; then
 fi
 
 main() {
+  local highlight
+  highlight=$(select_from  'bat --color=always --style=header' 'highlight -q --force -O ansi')
   choices=$($search_cmd "${search_opts[@]}" 2> /dev/null |
-    fzf --ansi --multi --preview='[[ $(file -b {}) = *text* ]] && highlight -q --force -O ansi {}') || exit 1
+    fzf --ansi --multi --preview="[[ \$(file -ib {}) = *text* ]] && ${highlight} {}") || exit 1
 
   if [[ "$search_str" != '' ]]; then
     if [[ $search_cmd == 'ag' ]]; then

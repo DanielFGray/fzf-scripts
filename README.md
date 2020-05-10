@@ -28,11 +28,19 @@ Lists and searches for songs in an MPD library by artist, album, or playlist. I 
 
 Interactively move files. It was originally just an experiment to see what it would be like to make a file explorer with fzf.
 
+## fzrepl
+
+runs stdin against programs like sed, awk, jq and shows the result in the preview window
+
 ## [goog](goog)
 
 Google search from the command line. This is now broken since google deprecated the API I used and I have yet to update to the newer version..
 
 *depends on `jq` and `curl`*
+
+## igr
+
+Interactive rg wrapper 
 
 ## [ix](ix)
 
@@ -74,8 +82,13 @@ Currently there's no installation script, but if you clone the repo you can easi
 
 ``` sh
 cd /path/to/repo/fzf-scripts
-find -maxdepth 1 -executable -type f -exec ln -s -t $HOME/.local/bin /path/to/repo/fzf-scripts/{} \;
+find -maxdepth 1 -executable -type f -exec ln -s -t $HOME/.local/bin $PWD/fzf-scripts/{} \;
 ```
+
+# Notable Mentions
+
+* [forgit](https://github.com/wfxr/forgit) - a better version of fzgit
+* [fzf-tab](https://github.com/wfxr/forgit) - use fzf to tab-complete everything in your shell
 
 # Legal
 Copyright (C) 2016 Daniel F Gray <DanielFGray@gmail.com>

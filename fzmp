@@ -19,6 +19,8 @@ OPTIONS:
     Ctrl-d  delete the selected songs from the playlist
   -g --genre
     list genres (or F4 when running)
+  -P --playlists
+    list saved playlists (or F5 when running)
   -h --help
     print this help
 
@@ -67,6 +69,7 @@ bindings=(
   [track]='f2'
   [artist]='f3'
   [genre]='f4'
+  [playlists]='f5'
   [findadd]='ctrl-space'
 )
 
@@ -76,6 +79,7 @@ do_binding() {
   shift
   case "$b" in
     playlist) filter_by_playlist ;;
+    playlists) pick_playlist ;;
     track) filter_by_songs ;;
     artist) filter_by_artists ;;
     genre) filter_by_genres ;;
@@ -164,18 +168,19 @@ parse_config_file() {
     fi
     case "$key" in
       full_song_format) track_format="$val" ;;
-      fzf_options) [[ -z FZMP_FZF_OPTIONS ]] && FZMP_FZF_OPTIONS="$val" ;;
+      fzf_options) FZMP_FZF_OPTIONS="$val" ;;
       default_view)
-        if [[ "$val" =~ ^playlist$|^songs$|^artists$|^genres$ ]]; then
+        if [[ "$val" =~ ^playlist$|^songs$|^artists$|^genres$|^playlists$ ]]; then
           default_filter="filter_by_$val"
         else
           config_err+=( "unknown format \"$val\" in config file on line $nr" )
-          config_err+=( "default_view must be 'playlist' 'songs' 'artists' or 'genres'" )
+          config_err+=( "default_view must be 'playlist' 'songs' 'artists' 'genres' or 'playlists'" )
         fi ;;
       playlist_view_key) bindings[playlist]="$val" ;;
       artist_view_key) bindings[artist]="$val" ;;
       track_view_key) bindings[track]="$val" ;;
       genre_view_key) bindings[genre]="$val" ;;
+      playlists_view_key) bindings[playlists]="$val" ;;
       findadd_key) bindings[findadd]="$val" ;;
       *) config_err+=( "unknown key \"$key\" in config file on line $nr" )
     esac
@@ -300,10 +305,50 @@ filter_by_playlist() {
   case "${choice[0]}" in
     '>') mpc -q next; filter_by_playlist ;;
     '<') mpc -q prev; filter_by_playlist ;;
-    'ctrl-d') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[@]:1}"& filter_by_playlist ;;
-    'enter') [[ -n "${choice[1]}" ]] && mpc -q play "${choice[@]:1}"& filter_by_playlist ;;
-    'ctrl-z') mpc clear; filter_by_artists  ;;
+    'enter') [[ -n "${choice[1]}" ]] && mpc -q play "${choice[@]:1}" && filter_by_playlist ;;
+    'ctrl-d') [[ -n "${choice[1]}" ]] && mpc -q del "${choice[@]:1}" && filter_by_playlist ;;
+    'ctrl-s') save_playlist; filter_by_playlist ;;
     *) do_binding "${choice[0]}" || exit ;;
+  esac
+}
+
+save_playlist() {
+  local name playlists confirm
+  tput clear
+  # if [[ -z $(mpc playlist) ]]; then
+  #   color red 'cannot save empty playlist'
+  #   sleep 0.7
+  #   return 1
+  # fi
+  read -r -e -p 'Enter playlist name: ' name
+  [[ -z $name ]] && return 1
+  playlists=$(mpc lsplaylists)
+  if [[ $playlists = *"$name"* ]]; then
+    diff -s --suppress-common-lines --color=always --label="$name" --label='playlist' <(mpc playlist -f '%file%' "$name") <(mpc playlist -f '%file%')
+    read -r -n 1 -p 'Are you sure you want to overwrite this playlist? (press y) ' confirm || return
+    [[ ${confirm} = y ]] || return 1
+  fi
+  mpc save "$name"
+}
+
+pick_playlist() {
+  local choice
+  mapfile -t choice < <(mpc lsplaylists |
+    fzf --prompt='playlists > ' \
+      --multi \
+      --preview='mpc playlist {1}' \
+      --delimiter='\t' \
+      --bind='ctrl-space:execute-silent:mpc load {1}' \
+      --expect="${key_bindings},ctrl-d,enter")
+  case "${choice[0]}" in
+    'enter') mpc playlist -f '%file%' "${choice[1]}" | add_songs play && filter_by_playlist ;;
+    'ctrl-d')
+      tput clear
+      read -r -n 1 -p 'Are you sure you want to delete this playlist? (press y) ' confirm
+      if [[ ${confirm} = y ]]; then
+        mpc rm "${choice[1]}"
+      fi ;;
+    *) do_binding "${choice[0]}" || exit
   esac
 }
 
@@ -329,6 +374,7 @@ while :; do
     -A|--all) default_filter='filter_by_songs'; shift ;;
     -a|--artist) default_filter='filter_by_artists'; shift ;;
     -p|--playlist) default_filter='filter_by_playlist'; shift ;;
+    -P|--playlists) default_filter='pick_playlist'; shift ;;
     -g|--genre) default_filter='filter_by_genres'; shift ;;
     -h|--help) usage; exit ;;
     *) break

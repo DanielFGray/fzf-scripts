@@ -195,6 +195,7 @@ filter_by_songs() {
       --multi \
       --with-nth='2..' \
       --delimiter='\t' \
+      --bind='ctrl-space:execute-silent:printf "%s\n" {+} | cut -f1 | mpc add' \
       --expect="${key_bindings},enter" |
     cut -f1)
   case "${choice[0]}" in

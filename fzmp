@@ -7,18 +7,20 @@ usage() {
 fzmp [OPTIONS]
 
 OPTIONS:
-  -A --all
-    search all songs in the library (or F1 when running)
   -a --artist
-    search artist then filter by album (or F2 when running)
+    search artist then filter by album (or F3 when running)
+  -A --all
+    search all songs in the library (or F2 when running)
+  -g --genre
+    list genres (or F4 when running)
   -p --playlist
-    search the current playlist (or F3 when running)
+    search the current playlist (or F1 when running)
     playlist view has the following keybinds:
     >       go to the next song in the playlist
     <       go to the previous song in the playlist
     Ctrl-d  delete the selected songs from the playlist
-  -g --genre
-    list genres (or F4 when running)
+    Ctrl-s  save current playlist
+    Ctrl-p  toggle play/pause
   -P --playlists
     list saved playlists (or F5 when running)
   -h --help
@@ -44,14 +46,15 @@ CONFIGURATION:
     allows customizing which keys fire the different views
   findadd_key
     adds all songs under the cursor by artist/genre/album
-    defaults to ctrl-space
+    (default ctrl-space)
   fzf_options
     Command line options to be passed directly to fzf.
-    Changing this will override the default options: +s -e -i --reverse --cycle
+    Changing this will override the default options:
+      --height='100%' +s -e -i --reverse --cycle
     To use the jump feature of fzf you can try:
-    +s -e -i --reverse --cycle --bind=\`:jump
-    It also helps to have a bind for toggle-all, e.g.
-    +s -e -i --reverse --cycle --bind=\`:jump --bind="ctrl-t:toggle-all"
+      --bind=\`:jump --height='100%' +s -e -i --reverse --cycle
+    It also helps to have a bind for toggle-all:
+      --bind=ctrl-t:toggle-all --bind=\`:jump --height=100% +s -e -i --reverse --cycle
     individual sessions can override with the environment variable FZMP_FZF_OPTIONS
     fzmp will also inherit options from FZF_DEFAULT_OPTS
 HELP
@@ -91,7 +94,7 @@ do_binding() {
 action_from_keybind() {
   for a in "${!bindings[@]}"; do
     if [[ $1 == "${bindings[$a]}" ]]; then
-      printf "$a"
+      printf '%s' "$a"
       return 0
     fi
   done
@@ -146,13 +149,13 @@ is_running() {
 
 fzf() {
   local opts
-  opts=( +s -e -i --reverse --cycle )
+  opts=( +s -e -i --reverse --cycle --height=100% )
   [[ -v FZMP_FZF_OPTIONS ]] && opts=( $FZMP_FZF_OPTIONS )
-  command fzf "${opts[@]}" \
+  command fzf \
     --inline-info \
     --ansi \
     --no-clear \
-    "$@"
+    "${opts[@]}" "$@"
 }
 
 parse_config_file() {
@@ -275,7 +278,7 @@ filter_by_album_from_artist() {
 
 filter_songs_from_album() {
   local album artist choice
-  [[ -z "$1" || -z "$2" ]] && exit 999
+  [[ -z "$1" || -z "$2" ]] && exit 255
   artist="$1"
   album="$2"
   mapfile -t choice < <(mpc search -f '%file%\t[[[%track% - ][%title%]]|%file%]' artist "${artist}" album "${album}" |
@@ -300,7 +303,8 @@ filter_by_playlist() {
       ${current_song:+--header="now playing: ${current_song}"} \
       --delimiter='\t' \
       --with-nth='2..' \
-      --expect="${key_bindings},>,<,ctrl-d,enter,ctrl-z" |
+      --bind='ctrl-p:execute-silent:mpc toggle' \
+      --expect="${key_bindings},>,<,ctrl-d,enter,ctrl-s" |
     cut -f1) || die
   case "${choice[0]}" in
     '>') mpc -q next; filter_by_playlist ;;
@@ -353,16 +357,23 @@ pick_playlist() {
 }
 
 add_songs() {
+  local songs index
   mapfile -t songs
   (( "${#songs[@]}" > 0 )) || die
   printf '%s\n' "${songs[@]}" | mpc -q add
   [[ $1 == play ]] || return
   index=$(mpc playlist | wc -l)
-  (( ${#songs[@]} > 1 )) &&
+  if (( ${#songs[@]} > 1 )); then
     index=$(( index - ${#songs[@]} + 1))
+  fi
   mpc -q play "$index"
   filter_by_playlist
 }
+
+finish() {
+  tput rmcup
+}
+trap finish EXIT SIGINT SIGTERM
 
 parse_config_file
 IFS=',' key_bindings="${bindings[*]}"
@@ -384,9 +395,5 @@ done
 has -v fzf mpc || die
 is_running mpd || [[ -v MPD_HOST ]] || die "can't connect to mpd"
 
-finish() {
-  tput rmcup
-}
-
-trap finish EXIT SIGINT SIGTERM
-$default_filter
+tput smcup
+"$default_filter"

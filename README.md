@@ -28,7 +28,7 @@ Lists and searches for songs in an MPD library by artist, album, or playlist. I 
 
 Interactively move files. It was originally just an experiment to see what it would be like to make a file explorer with fzf.
 
-## fzrepl
+## [fzrepl](fzrepl)
 
 runs stdin against programs like sed, awk, jq and shows the result in the preview window
 
@@ -38,7 +38,7 @@ Google search from the command line. This is now broken since google deprecated 
 
 *depends on `jq` and `curl`*
 
-## igr
+## [igr](igr)
 
 Interactive rg wrapper 
 

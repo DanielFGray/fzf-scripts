@@ -351,6 +351,7 @@ pick_playlist() {
       read -r -n 1 -p 'Are you sure you want to delete this playlist? (press y) ' confirm
       if [[ ${confirm} = y ]]; then
         mpc rm "${choice[1]}"
+        pick_playlist
       fi ;;
     *) do_binding "${choice[0]}" || exit
   esac

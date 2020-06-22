@@ -5,13 +5,16 @@ usage() {
 fzrepl
   interactively edit stdin using stream filters like awk, sed, jq
 
-  -c, --cmd    command used to filter input
-  -q, --query  default command string to use
+  -c, --cmd      command used to filter input
+  -q, --query    default command string to use
+
+command history can be saved to a file by setting the environment variable
+FZREPL_FILE
 
 examples:
   echo 'foo bar' | fzrepl -c 'awk {q}' -q '{print}'
   echo 'hello world' | fzrepl -q p 'sed -n {q}'
-  fzrepl 'jq {q}' package.json
+  FZREPL_FILE=jqhistory fzrepl jq package.json
 HELP
 }
 
@@ -88,6 +91,7 @@ mapfile -t REPLY < <(
     --phony \
     --print-query \
     --query="$default_query" \
+    ${FZREPL_FILE:+--history=$FZREPL_FILE} \
     --preview="$cmd < '$tmpfile'"
 )
 

@@ -262,10 +262,11 @@ filter_by_album_from_artist() {
   local album artist choice
   [[ -z "$1" ]] && filter_by_artists
   artist="$1"
+  printf -v qartist '%q' "$1"
   mapfile -t choice < <(mpc search -f '[(%date%)]\t[%album%]' artist "$artist" |
     sort -h | uniq |
     fzf --prompt="$artist > " \
-      --preview="mpc search -f '[[[%track% - ][%title%]]|%file%]' artist '$artist' album {2}" \
+      --preview="mpc search -f '[[[%track% - ][%title%]]|%file%]' artist ${qartist} album {2}" \
       --expect="${key_bindings},enter" \
       --bind="${bindings[findadd]}:execute-silent:mpc findadd album {2..} artist '$artist'" \
       --delimiter='\t' |

@@ -267,7 +267,7 @@ filter_by_album_from_artist() {
     fzf --prompt="$artist > " \
       --preview="mpc search -f '[[[%track% - ][%title%]]|%file%]' artist '$artist' album {2}" \
       --expect="${key_bindings},enter" \
-      --bind="${bindings[findadd]}:execute-silent:mpc findadd album {2..}" \
+      --bind="${bindings[findadd]}:execute-silent:mpc findadd album {2..} artist '$artist'" \
       --delimiter='\t' |
       cut -f2)
   case "${choice[0]}" in

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+
+while :; do
+  case "$1" in
+    -h|--help)
+      LESS=-FEXR less <<HELP
+fztop SEARCH
+
+USAGE:
+  at runtime a the following keybinds are available:
+
+  ctrl-x
+    will send SIGTERM to the selected process
+  F9
+    will send SIGKILL to the selected process
+HELP
+      exit ;;
+    *) break
+  esac
+done
+
+
+exec fzf \
+  --reverse \
+  --header-lines=1 \
+  --query="!fzf $*" \
+  --preview='echo {}' \
+  --preview-window=down:4:wrap \
+  --bind='change:reload:ps xjf' \
+  --bind='ctrl-x:execute(kill {2})+reload(ps xjf)' \
+  --bind='F9:execute:(kill -9 {2})+reload(ps xjf)' < <(ps xjf)

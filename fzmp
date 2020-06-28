@@ -149,13 +149,22 @@ is_running() {
 
 fzf() {
   local opts
-  opts=( +s -e -i --reverse --cycle --height=100% )
+  opts=( --reverse --cycle --height=100% )
   [[ -v FZMP_FZF_OPTIONS ]] && opts=( $FZMP_FZF_OPTIONS )
-  command fzf \
-    --inline-info \
-    --ansi \
-    --no-clear \
-    "${opts[@]}" "$@"
+  if has fzf; then
+    command fzf \
+      --inline-info \
+      --ansi \
+      --no-clear \
+      "${opts[@]}" "$@"
+  elif has sk; then
+    command sk \
+      --inline-info \
+      --ansi \
+      "${opts[@]}" "$@"
+  else
+    err 'no filter found'
+  fi
 }
 
 parse_config_file() {

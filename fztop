@@ -28,5 +28,6 @@ exec fzf \
   --preview='echo {}' \
   --preview-window=down:4:wrap \
   --bind='change:reload:ps xjf' \
+  --bind='ctrl-r:reload:ps xjf' \
   --bind='ctrl-x:execute(kill {2})+reload(ps xjf)' \
   --bind='F9:execute:(kill -9 {2})+reload(ps xjf)' < <(ps xjf)

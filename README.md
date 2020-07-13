@@ -88,7 +88,7 @@ find -maxdepth 1 -executable -type f -exec ln -s -t $HOME/.local/bin $PWD/fzf-sc
 # Notable Mentions
 
 * [forgit](https://github.com/wfxr/forgit) - a better version of fzgit
-* [fzf-tab](https://github.com/wfxr/forgit) - use fzf to tab-complete everything in your shell
+* [fzf-tab](https://github.com/Aloxaf/fzf-tab) - use fzf to tab-complete everything in your shell
 
 # Legal
 Copyright (C) 2016 Daniel F Gray <DanielFGray@gmail.com>

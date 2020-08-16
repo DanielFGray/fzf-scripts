@@ -340,7 +340,11 @@ save_playlist() {
   if [[ $playlists = *"$name"* ]]; then
     diff -s --suppress-common-lines --color=always --label="$name" --label='playlist' <(mpc playlist -f '%file%' "$name") <(mpc playlist -f '%file%')
     read -r -n 1 -p 'Are you sure you want to overwrite this playlist? (press y) ' confirm || return
-    [[ ${confirm} = y ]] || return 1
+    if [[ ${confirm,} = y ]]; then
+      mpc rm "$name"
+    else
+      return
+    fi
   fi
   mpc save "$name"
 }

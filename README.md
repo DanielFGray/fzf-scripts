@@ -75,6 +75,15 @@ Lists and removes packages, optionally sorts by size.
 *depends on `pacman`*
 * [Demo](https://asciinema.org/a/HOMwFt7shskjb6WaHb733ZiGZ)
 
+## [pkgup](pkgrm)
+
+Lists and upgrades package.
+
+*[Demo](https://asciinema.org/a/3xRisYfiWCcuCfW01b3az8Pwl)
+
+*depends on `pacman`*
+* [Demo](https://asciinema.org/a/HOMwFt7shskjb6WaHb733ZiGZ)
+
 ## [sshget](sshget)
 
 Lists files from remote servers and `rsync`s them to the current directory

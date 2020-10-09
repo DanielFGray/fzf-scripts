@@ -9,7 +9,7 @@ Almost all of them require various tools from coreutils like `awk` `sed` `cut`, 
 Lists or searches for files and opens them with a command, defaults to `vim`. Kind of a shortcut for `vim $(ag 'foo' | fzf)`, lists files if no search string is given.
 
 
-* [Demo]([![asciicast](https://asciinema.org/a/sXeXaBsPaGkKm173ONMgUMAxP.svg)](https://asciinema.org/a/sXeXaBsPaGkKm173ONMgUMAxP))
+* [Demo](https://asciinema.org/a/sXeXaBsPaGkKm173ONMgUMAxP)
 ## [fzgit](fzgit)
 
 Interactive git wrapper. Very much still a work in progress, but it has some very cool functions already.
@@ -30,7 +30,7 @@ Lists and searches for songs in an MPD library by artist, album, or playlist. I 
 
 Interactively move files. It was originally just an experiment to see what it would be like to make a file explorer with fzf.
 
-* [Demo]([![asciicast](https://asciinema.org/a/364316.svg)](https://asciinema.org/a/364316))
+* [Demo](https://asciinema.org/a/364316.svg)](https://asciinema.org/a/364316)
 
 ## [fzrepl](fzrepl)
 
@@ -58,7 +58,7 @@ Searches [npmjs.com](https://npmjs.com) and installs packages with `yarn` if ava
 
 *depends on npm and [jq](https://stedolan.github.io/jq/)*
 
-* [Demo]([![asciicast](https://asciinema.org/a/sXeXaBsPaGkKm173ONMgUMAxP.svg)](https://asciinema.org/a/sXeXaBsPaGkKm173ONMgUMAxP))
+* [Demo](https://asciinema.org/a/sXeXaBsPaGkKm173ONMgUMAxP)
 
 * [Demo](https://asciinema.org/a/178602)
 
@@ -66,14 +66,14 @@ Searches [npmjs.com](https://npmjs.com) and installs packages with `yarn` if ava
 
 Searches repos and installs multiple packages. Currently works with Debian, Ubuntu and Arch, and experimental support for Fedora and Void.
 
-* [Demo]([![asciicast](https://asciinema.org/a/Kxwto9i3ioiDoJ3C9du18GKxc.svg)](https://asciinema.org/a/Kxwto9i3ioiDoJ3C9du18GKxc))
+* [Demo](https://asciinema.org/a/Kxwto9i3ioiDoJ3C9du18GKxc)
 
 ## [pkgrm](pkgrm)
 
 Lists and removes packages, optionally sorts by size.
 
 *depends on `pacman`*
-* [Demo]([![asciicast](https://asciinema.org/a/HOMwFt7shskjb6WaHb733ZiGZ.svg)](https://asciinema.org/a/HOMwFt7shskjb6WaHb733ZiGZ))
+* [Demo](https://asciinema.org/a/HOMwFt7shskjb6WaHb733ZiGZ)
 
 ## [sshget](sshget)
 
@@ -83,7 +83,7 @@ Lists files from remote servers and `rsync`s them to the current directory
 
 list active processes and kill on F9
 
-* [Demo]([![asciicast](https://asciinema.org/a/IIFDLdxZhLyYxLgX9qAcrGmQ7.svg)](https://asciinema.org/a/IIFDLdxZhLyYxLgX9qAcrGmQ7))
+* [Demo](https://asciinema.org/a/IIFDLdxZhLyYxLgX9qAcrGmQ7)
 
 
 ## [wifi](wifi)

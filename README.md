@@ -30,7 +30,7 @@ Lists and searches for songs in an MPD library by artist, album, or playlist. I 
 
 Interactively move files. It was originally just an experiment to see what it would be like to make a file explorer with fzf.
 
-* [Demo](https://asciinema.org/a/364316.svg)](https://asciinema.org/a/364316)
+* [Demo](https://asciinema.org/a/364316)
 
 ## [fzrepl](fzrepl)
 

@@ -67,6 +67,11 @@ for arg; do
   esac
 done
 
+if [[ -z $cmd ]]; then
+  usage
+  exit 1
+fi
+
 if [[ -z $cmd && -n $1 && ! -f $1 ]]; then
   cmd="$1"
   shift

@@ -207,7 +207,7 @@ parse_config_file() {
 
 filter_by_songs() {
   local choice
-  mapfile -t choice < <(mpc find -f "%file%\t$track_format" filename '' |
+  mapfile -t choice < <(mpc search -f "%file%\t$track_format" filename '' |
     fzf --prompt='songs > ' \
       --multi \
       --with-nth='2..' \
@@ -223,7 +223,7 @@ filter_by_songs() {
 
 filter_by_genres() {
   local choice
-  mapfile -t choice < <(mpc find -f '%genre%' genre '' |
+  mapfile -t choice < <(mpc search -f '%genre%' genre '' |
     awk 'NF' | sort | uniq -c | sort -rn |
     fzf --prompt='genres > ' \
       --preview='mpc find -f "%artist%" genre {2..} | sort -u' \

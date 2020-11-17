@@ -62,7 +62,7 @@ HELP
 
 declare default_filter='filter_by_playlist'
 declare track_format='[[[%artist% / ][[(%date%) ]%album% / ][[%track% - ][%title%]]]|%file%]'
-declare -r album_listing="mpc search -f '%album%\t%track%\t%title%' artist {} | awk -F'\t' '{ if(album != \$1) { album=\$1; print album } printf \"  %2d. %s\n\", \$2, \$3 }'"
+declare -r album_listing="mpc find -f '%album%\t%track%\t%title%' artist {} | awk -F'\t' '{ if(album != \$1) { album=\$1; print album } printf \"  %2d. %s\n\", \$2, \$3 }'"
 declare -a config_err
 
 declare key_bindings
@@ -207,7 +207,7 @@ parse_config_file() {
 
 filter_by_songs() {
   local choice
-  mapfile -t choice < <(mpc search -f "%file%\t$track_format" filename '' |
+  mapfile -t choice < <(mpc find -f "%file%\t$track_format" filename '' |
     fzf --prompt='songs > ' \
       --multi \
       --with-nth='2..' \
@@ -223,10 +223,10 @@ filter_by_songs() {
 
 filter_by_genres() {
   local choice
-  mapfile -t choice < <(mpc search -f '%genre%' genre '' |
+  mapfile -t choice < <(mpc find -f '%genre%' genre '' |
     awk 'NF' | sort | uniq -c | sort -rn |
     fzf --prompt='genres > ' \
-      --preview='mpc search -f "%artist%" genre {2..} | sort -u' \
+      --preview='mpc find -f "%artist%" genre {2..} | sort -u' \
       --bind="${bindings[findadd]}:execute-silent:mpc findadd genre {2..}" \
       --expect="${key_bindings},enter" |
     sed -r 's/^\s*[0-9]+\s*//')
@@ -240,7 +240,7 @@ filter_by_genres() {
 filter_by_artist_from_genre() {
   local artist genre choice
   genre="$1"
-  mapfile -t choice < <(mpc search -f '%artist%' genre "$genre" |
+  mapfile -t choice < <(mpc find -f '%artist%' genre "$genre" |
     sort -u | awk 'NF' | sort -u |
     fzf --prompt="$genre > " \
       --preview="$album_listing" \
@@ -272,10 +272,10 @@ filter_by_album_from_artist() {
   [[ -z "$1" ]] && filter_by_artists
   artist="$1"
   printf -v qartist '%q' "$1"
-  mapfile -t choice < <(mpc search -f '[(%date%)]\t[%album%]' artist "$artist" |
+  mapfile -t choice < <(mpc find -f '[(%date%)]\t[%album%]' artist "$artist" |
     sort -h | uniq |
     fzf --prompt="$artist > " \
-      --preview="mpc search -f '[[[%track% - ][%title%]]|%file%]' artist ${qartist} album {2}" \
+      --preview="mpc find -f '[[[%track% - ][%title%]]|%file%]' artist ${qartist} album {2}" \
       --expect="${key_bindings},enter" \
       --bind="${bindings[findadd]}:execute-silent:mpc findadd album {2..} artist ${qartist}" \
       --delimiter='\t' |
@@ -291,7 +291,7 @@ filter_songs_from_album() {
   [[ -z "$1" || -z "$2" ]] && exit 255
   artist="$1"
   album="$2"
-  mapfile -t choice < <(mpc search -f '%file%\t[[[%track% - ][%title%]]|%file%]' artist "${artist}" album "${album}" |
+  mapfile -t choice < <(mpc find -f '%file%\t[[[%track% - ][%title%]]|%file%]' artist "${artist}" album "${album}" |
     fzf --prompt="$artist - $album > " \
       --multi \
       --with-nth='2..' \

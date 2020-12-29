@@ -44,7 +44,7 @@ export -f has
 aliases[s]=search
 helptext['search']="search and install packages"
 subcmd_search() {
-  local choices init
+  local init
   if [[ -n $1 ]]; then init=$(npm --json search "$*" | pretty_npm_search); fi
   # SHELL is needed to use exported functions if default shell is not bash
   SHELL=$(which bash) fzf \
@@ -99,6 +99,7 @@ export -f subcmd_install
 
 helptext[init]='guided project setup'
 subcmd_init() {
+  # shellcheck disable=2091
   $(select_from 'git-flow init -d' 'git init') > /dev/null
   npm init -y > /dev/null
   [[ -e .gitignore ]] || curl -sL https://raw.githubusercontent.com/toptal/gitignore/master/templates/Node.gitignore > .gitignore
@@ -141,7 +142,7 @@ export -f pretty_npm_search
 
 has -v fzf jq npm || die
 
-mapfile -t subcmds_avail < <(compgen -A function | awk '/^subcmd_/{ sub(/^subcmd_/, "", $0); print }')
+mapfile -t subcmds_avail < <(compgen -A function | awk '/^subcmd_/ { sub(/^subcmd_/, "", $0); print }')
 
 if (( $# < 1 )); then
   err 'missing command'

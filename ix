@@ -93,7 +93,7 @@ get_pastes() {
 
 list_pastes() {
   local highlighter
-  highlighter=$(select_from 'highlight -q --force -O ansi' pygmentize cat)
+  highlighter=$(select_from 'bat --color always --style numbers,header,snip' 'highlight -q --force -O ansi' pygmentize cat)
   url=$(get_pastes "$(get_user_name)" | fzf \
     --inline-info --cycle \
     --header='Ctrl-E = edit; Ctrl-V = view; Ctrl-D = delete' \

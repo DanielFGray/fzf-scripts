@@ -48,13 +48,11 @@ Uploads files to [ix.io](http://ix.io) and allows listing and editing of uploads
 
 *depends on `curl`*
 
-## [npmsearch](npmsearch)
+## [js](js)
 
 Searches [npmjs.com](https://npmjs.com) and installs packages with `yarn` if available or `npm`.
 
 *depends on npm and [jq](https://stedolan.github.io/jq/)*
-
-* [Demo](https://asciinema.org/a/178602)
 
 ## [pkgsearch](pkgsearch)
 

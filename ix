@@ -78,7 +78,7 @@ create_account() {
 }
 
 get_user_name() {
-  awk '"ix.io"==$2{print $4}' ~/.netrc
+  awk '"ix.io" == $2 { print $4 }' ~/.netrc
 }
 
 get_pastes() {

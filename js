@@ -67,12 +67,11 @@ aliases[lsv]='ls-versions'
 helptext['ls-versions']='list and install versions'
 subcmd_ls-versions() {
   local package="$1"
-  npm --json view "$package" |
-    jq -r '.versions[]' |  # label with .dist-tags?
-    fzf --tac --preview="npm view ${package}@{1}" \
-      --header="choose version for $package | C-d saves as devDependency" \
-      --bind="enter:execute:subcmd_install '${package}@{1}' <> /dev/tty" \
-      --bind="ctrl-d:execute:subcmd_install -D '${package}@{1}' <> /dev/tty"
+  fzf --tac --preview="npm view ${package}@{1}" \
+    --header="choose version for $package | C-d saves as devDependency" \
+    --bind="enter:execute:subcmd_install '${package}@{1}' <> /dev/tty" \
+    --bind="ctrl-d:execute:subcmd_install -D '${package}@{1}' <> /dev/tty" \
+    < <(npm --json view "$package" | jq -r '.versions[]')  # label with .dist-tags?)
 }
 export -f subcmd_ls-versions
 

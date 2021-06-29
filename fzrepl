@@ -95,7 +95,7 @@ mapfile -t REPLY < <(
     --sync \
     --ansi \
     --height=100% \
-    --phony \
+    --disabled \
     --print-query \
     --query="$default_query" \
     ${FZREPL_FILE:+--history=$FZREPL_FILE} \

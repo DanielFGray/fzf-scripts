@@ -32,11 +32,16 @@ Interactively move files. It was originally just an experiment to see what it wo
 
 runs stdin against programs like sed, awk, jq and shows the result in the preview window
 
-## [goog](goog)
+## [ddgsearch](ddgsearch)
 
-Google search from the command line. This is now broken since google deprecated the API I used and I have yet to update to the newer version..
+A wrapper around [ddgr](https://github.com/jarun/ddgr) to search the web using DuckDuckGo.
+Accepts all `ddgr` command line arguments. For example, to search Wikipedia for "hello world":
 
-*depends on `jq` and `curl`*
+```sh
+ddgsearch \!w hello world
+```
+
+*depends on `jq` and `ddgr`*
 
 ## [igr](igr)
 
@@ -78,7 +83,7 @@ List and connect to wifi networks
 
 Currently there's no installation script, but if you clone the repo you can easily symlink the scripts here with something like:
 
-``` sh
+```sh
 cd /path/to/repo/fzf-scripts
 find -maxdepth 1 -executable -type f -exec ln -s -t $HOME/.local/bin $PWD/fzf-scripts/{} \;
 ```
@@ -89,6 +94,8 @@ find -maxdepth 1 -executable -type f -exec ln -s -t $HOME/.local/bin $PWD/fzf-sc
 * [fzf-tab](https://github.com/Aloxaf/fzf-tab) - use fzf to tab-complete everything in your shell
 
 # Legal
+
+Copyright (C) 2023 Ronald Joe Record <ronaldrecord@gmail.com>
 Copyright (C) 2016 Daniel F Gray <DanielFGray@gmail.com>
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.

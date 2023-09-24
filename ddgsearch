@@ -27,6 +27,24 @@ has() {
   done
 }
 
+select_from() {
+  local o c cmd OPTARG OPTIND
+  cmd='command -v'
+  while getopts 'c:' o; do
+    case "$o" in
+      c) cmd="$OPTARG" ;;
+    esac
+  done
+  shift "$((OPTIND-1))"
+  for c; do
+    if $cmd "${c%% *}" &> /dev/null; then
+      echo "$c"
+      return 0
+    fi
+  done
+  return 1
+}
+
 openurl() {
   local url="$1"
   local browser
@@ -44,33 +62,15 @@ openurl() {
   $browser "$url"
 }
 
-# http://stackoverflow.com/a/10660730
-rawurlencode() {
-  local string="$*"
-  local strlen=${#string}
-  local encoded=""
-  for (( pos=0; pos < strlen; pos++ )); do
-    c="${string:$pos:1}"
-    case "$c" in
-      [-_.~a-zA-Z0-9])
-        o="$c" ;;
-      *)
-        printf -v o '%%%02x' "'$c"
-    esac
-    encoded+="${o}"
-  done
-  echo "${encoded}"
-}
-
-has -v curl jq fzf || die
+has -v ddgr jq fzf || die
 
 if [[ -z "$*" ]]; then
   die 'nothing to search for'
 fi
 
-response=$( curl -sfL "http://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=8&q=$(rawurlencode "$*")" ) || die 'error connecting to google, check connection'
-json=$( jq -c '.["responseData"]["results"] | map("\(.unescapedUrl) \(.title) | \(.content)") | .[]' <<< "$response" ) || die 'error parsing results :('
-url=$( fzf -e --ansi --cycle --inline-info <\
+response=$( ddgr --json --noprompt --expand "$*" ) || die 'error connecting to DuckDuckGo, check connection'
+json=$( jq -c '. | map("\(.url) | \(.title) | \(.abstract)") | .[]' <<< "$response" ) || die 'error parsing results :('
+url=$( fzf -e --ansi --cycle --inline-info --select-1 <\
   <( sed -r 's/<[^>]*>//g; s/\\n//g; s/^\s*"//; s/",?$//' <<< "$json" ) |
   cut -d' ' -f1 )
 

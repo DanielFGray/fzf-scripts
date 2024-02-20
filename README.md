@@ -4,6 +4,10 @@ This is a collection of scripts I've written that use [fzf](https://github.com/j
 
 Almost all of them require various tools from coreutils like `awk` `sed` `cut`, and probably make use of GNU extensions.
 
+## [dkr](dkr)
+
+an interactive wrapper around some docker commands
+
 ## [fv](fv)
 
 Lists or searches for files and opens them with a command, defaults to `vim`. Kind of a shortcut for `vim $(ag 'foo' | fzf)`, lists files if no search string is given.

@@ -8,6 +8,6 @@ fzf -d: \
 --query="$1" \
 --phony \
 --bind="change:reload:rg --color=always -n {q}" \
---bind='enter:execute:v {1}' \
+--bind='enter:execute:$EDITOR {1}' \
 --preview-window='+{2}-/2' \
 --preview="[[ -n {1} ]] && $preview"

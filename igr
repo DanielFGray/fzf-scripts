@@ -2,12 +2,14 @@
 
 preview='bat --color=always --style=header,numbers -H {2} {1}'
 
-rg --color=always -n "$1" 2> /dev/null |
+command='rg --color=always -n'
+
 fzf -d: \
 --ansi \
 --query="$1" \
 --phony \
---bind="change:reload:rg --color=always -n {q}" \
+--bind="change:reload:$command {q}" \
+--bind="start:reload:$command {q}" \
 --bind='enter:execute:$EDITOR {1}' \
 --preview-window='+{2}-/2' \
 --preview="[[ -n {1} ]] && $preview"

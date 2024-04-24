@@ -9,4 +9,5 @@ fzf -d: \
 --phony \
 --bind="change:reload:rg --color=always -n {q}" \
 --bind='enter:execute:v {1}' \
+--preview-window='+{2}-/2' \
 --preview="[[ -n {1} ]] && $preview"

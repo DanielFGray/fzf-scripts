@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-preview='bat --color=always --style=header,numbers -H {2} {1} | grep -C3 {q}'
+preview='bat --color=always --style=header,numbers -H {2} {1}'
 
 rg --color=always -n "$1" 2> /dev/null |
 fzf -d: \

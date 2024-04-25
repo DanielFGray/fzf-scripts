@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 
-preview='bat --color=always --style=header,numbers -H {2} {1}'
+select_from() {
+  local c
+  for c; do
+    if command -v "${c%% *}" &> /dev/null; then
+      echo "$c"
+      return 0
+    fi
+  done
+  return 1
+}
 
-command='rg --color=always -n'
+preview=$(select_from 'bat --color=always --style=header,numbers -H {2} {1}' 'cat {1}')
+
+command=$(select_from 'rg -n --color=always' 'grep -Rn --color=always')
 
 fzf -d: \
 --ansi \

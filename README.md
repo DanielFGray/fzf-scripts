@@ -49,7 +49,7 @@ ddgsearch \!w hello world
 
 ## [igr](igr)
 
-Interactive rg wrapper 
+Interactive grep/rg wrapper
 
 ## [ix](ix)
 

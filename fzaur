@@ -99,6 +99,7 @@ clone_package() {
   makepkg -si
 }
 
+has -v fzf jq curl || die
 
 mapfile -t subcmds_avail < <(compgen -A function | awk '/^subcmd_/ { sub(/^subcmd_/, "", $0); print }')
 

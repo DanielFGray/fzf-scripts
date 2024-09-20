@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+
+declare -A aliases
+declare -A helptext
+declare -r c_reset=$(tput sgr0)
+declare -r c_red=$(tput setaf 1)
+declare -r c_green=$(tput setaf 2)
+declare -r c_yellow=$(tput setaf 3)
+declare -r c_grey=$(tput setaf 8)
+
+err() {
+  printf "${c_red}%s${c_reset}\n" "$*" >&2
+}
+
+die() {
+  if (( $# > 0 )); then
+    err "$@"
+  fi
+  exit 1
+}
+
+has() {
+  local v c
+  if [[ $1 = '-v' ]]; then
+    v=1
+    shift
+  fi
+  for c; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      (( v > 0 )) && err "$c not found"
+      return 1
+    fi
+  done
+}
+
+aliases[h]=help
+aliases[-h]=help
+aliases[--help]=help
+helptext[help]='show this help'
+subcmd_help() {
+  local formattedhelptext
+
+  formattedhelptext=$(for c in "${subcmds_avail[@]}"; do
+    printf "  %s\n    %s\n" "$c" "${helptext[$c]}"
+  done)
+  LESS=-FEXR less <<-HELP
+$0 <COMMAND>
+
+${formattedhelptext}
+HELP
+}
+
+aliases[s]=search
+aliases[-s]=search
+helptext[search]='search packages on arch user repositories'
+subcmd_search() {
+  local q="$*" choices
+  # local search_cmd='curl -s https://www.archlinux.org/packages/search/json/ | jq -r ".results[] | select(.Name | contains(\"{q}\")) | .Name"'
+  local url_search='https://aur.archlinux.org/rpc/v5/search/'
+  local jq_package_listing=".results | sort_by(.NumVotes) | reverse[] | \"${c_yellow}\(.Name)${c_grey} - \(if .OutOfDate then \"${c_red}[out of date] \" else \"\" end)${c_green}▲\(.NumVotes)${c_grey} - ${c_reset}\(.Description)\""
+
+  local url_info='https://aur.archlinux.org/rpc/v5/info?arg[]='
+  local jq_package_info='.results[]'
+
+  local cmd_search="curl -sL '${url_search}{q}' | jq -r '$jq_package_listing'"
+  mapfile -t choices < <(fzf -m --phony --query="$q" \
+    --preview="curl -sL '${url_info}{1}' | jq -C '$jq_package_info'" \
+    --bind=change:"reload(${cmd_search})" \
+    --bind=start:"reload(${cmd_search})" | awk '{print $1}')
+
+  (( ${#choices[@]} < 1 )) && exit 0
+  clone_package "${choices[0]}"
+}
+
+clone_package() {
+  local pkg="$1" url
+  if [[ $pkg != http* ]]; then
+    url="https://aur.archlinux.org/${pkg}"
+  fi
+  # TODO: make this configurable
+  local clonedir=~/.cache/fzaur
+  if [[ ! -d "$clonedir/$pkg" ]]; then
+    mkdir -p "$clonedir"
+  fi
+  cd "$clonedir" || die "failed to mkdir $clonedir"
+  if [[ -d "$pkg" ]]; then
+    cd "$pkg" 2> /dev/null || die 'failed to cd into package'
+    if [[ ! -d .git ]]; then
+      die "$clonedir/$pkg already exists but is not a git repo"
+    fi
+    git pull
+  else
+    git clone "$url" || die 'failed to clone package'
+    cd "$pkg" 2> /dev/null || die 'failed to clone package'
+  fi
+  $EDITOR $PWD/PKGBUILD
+  read -r -n 1 -p "press y to run ${c_green}makepkg -si${c_reset} or any other key to abort: "
+  [[ $REPLY != y ]] && exit 1
+  makepkg -si
+}
+
+
+mapfile -t subcmds_avail < <(compgen -A function | awk '/^subcmd_/ { sub(/^subcmd_/, "", $0); print }')
+
+nocmd() {
+  local cmd=$(for c in "${subcmds_avail[@]}"; do
+    printf "$c\t${help}\t${helptext[$c]}\n"
+  done)
+  local choice=$(<<< "$cmd" column -t -s $'\t' | fzf | awk '{print $1}')
+  if [[ -z $choice ]]; then exit 1; fi
+  subcmd_$choice
+}
+
+if (( $# < 1 )); then
+  nocmd
+  exit 1
+elif has "subcmd_$1"; then
+  subcmd="subcmd_$1"
+  shift
+  "$subcmd" "$@"
+elif [[ -v aliases[$1] ]]; then
+  subcmd=subcmd_${aliases[$1]}
+  shift
+  "$subcmd" "$@"
+else
+  echo "unknown command \"$1\""
+  subcmd_help
+  exit 1
+fi

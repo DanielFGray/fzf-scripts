@@ -1,55 +1,69 @@
 #!/usr/bin/env bash
 
-# /usr/share/bash-completion/completions/git
-# https://github.com/junegunn/fzf/wiki/examples#git
+declare -A aliases
+declare -A helptext
+declare -r c_reset=$(tput sgr0)
+declare -r c_red=$(tput setaf 1)
+declare -r c_green=$(tput setaf 2)
+declare -r c_yellow=$(tput setaf 3)
+declare -r c_grey=$(tput setaf 8)
 
-# declare BOLD=$(tput bold || tput md)
-declare c_reset=$(tput sgr0)
-declare c_green=$(tput setaf 2 || tput AF 2)
-declare c_red=$(tput setaf 1 || tput AF 1)
-
-has() { # {{{
-  command -v "$1" &> /dev/null
+err() {
+  printf "${c_red}%s${c_reset}\n" "$*" >&2
 }
-# }}}
 
-ask() { # {{{
-  read -r -n1 -p "$* " ans
-  echo
-  [[ ${ans^} == Y* ]]
-}
-# }}}
-
-err() { # {{{
-    printf "${c_red}%s${c_reset}" "$*" >&2
-}
-# }}}
-
-die() { # {{{
-  [[ -n "$1" ]] && err "$1"
+die() {
+  if (( $# > 0 )); then
+    err "$@"
+  fi
   exit 1
 }
-# }}}
 
-has fzf || die 'fzf not found'
-# [[ -d "$PWD/.git" ]] || die 'not a git repo'
+has() {
+  local v c
+  if [[ $1 = '-v' ]]; then
+    v=1
+    shift
+  fi
+  for c; do c="${c%% *}"
+    if ! command -v "$c" &> /dev/null; then
+      (( v > 0 )) && err "$c not found"
+      return 1
+    fi
+  done
+}
 
-fzf() { # {{{
+aliases[-h]=help
+aliases[--help]=help
+helptext[help]='show this help'
+subcmd_help() {
+  local formattedhelptext
+
+  formattedhelptext=$(for c in "${subcmds_avail[@]}"; do
+    printf "  %s\n    %s\n" "$c" "${helptext[$c]}"
+  done)
+  LESS=-FEXR less <<-HELP
+$0 <COMMAND>
+
+${formattedhelptext}
+HELP
+}
+
+fzf() {
   local prompt
   if [[ $1 == --prompt=* ]]; then
     prompt="${1##*=}>"
     shift
   fi
   branch=$(git status 2> /dev/null | sed 's/On branch />/;q')
-  opts=( +s -e -i --reverse --cycle --prompt="fzgit${branch}>${prompt} " )
-  [[ -v FZMP_FZF_OPTIONS ]] && opts=( $FZMP_FZF_OPTIONS )
+  opts=( --prompt="fzgit${branch}>${prompt} " )
+  [[ -v FZGIT_OPTIONS ]] && opts=( $FZGIT_OPTIONS )
   command fzf "${opts[@]}" \
     --inline-info \
     --ansi \
     --no-clear \
     "$@"
 }
-# }}}
 
 declare -A git_cmds_descriptions=( # {{{
   ['add']='Add file contents to the index'
@@ -184,110 +198,85 @@ declare -A git_cmds_descriptions=( # {{{
   ['whatchanged']='Show logs with difference each commit introduces'
   ['write-tree']='Create a tree object from the current index'
 )
-# }}}
 
-declare -A implemented_git_cmds=(
-  ['stash']='git_stash'
-  ['add']='git_add'
-  ['checkout']='git_checkout'
-  ['commit']='git commit -v'
-  ['push']='git push'
-  ['log']='git_log'
-)
 
-git_log() { # {{{
-  local show="git show --color=always \"\$(grep -m1 -o \"[a-f0-9]\{7\}\" <<< {})\""
-  fzf --prompt='log' -e --no-sort --tiebreak=index \
-    --bind="enter:execute:$show | less -R" \
-    --preview="$show" \
-  < <(git log --graph --color=always \
-    --format="%C(auto)%h%d %s %C(black)%C(bold)%cr" "$@")
+subcmd_diff() {
+  if (( $# > 0 )); then git diff "$@"; fi
+  fzf \
+    --bind='start:reload:git -c color.status=always status -su' \
+    --nth=2.. \
+    --preview='git diff --color=always {2..} | delta -w $FZF_PREVIEW_COLUMNS' \
+    --bind='enter:execute:git diff --color=always {2..}' \
+    --preview-window=70%
 }
-# }}}
 
-git_checkout() { # {{{
+subcmd_add() {
+  if (( $# > 0 )); then git add "$@"; return; fi
+  local diff
+  diff=$(git diff --color=always | perl -pwe 's/^(\e\[[0-9;]*m)*(?=diff)/\0/m' | fzf --read0)
+  [[ -z $diff ]] && return
+  git apply --check --cached <<< "$diff" &&
+    git apply --cached <<< "$diff" &&
+    git apply --stat <<< "$diff"
+  subcmd_add
+}
+
+subcmd_status() {
+  local preview='git diff --color=always {2..}'
+  fzf \
+    --nth=2.. \
+    --bind='start:reload:git -c color.status=always status -s' \
+    --preview="$preview" \
+    --bind='enter:execute:git add -p {2..}'
+}
+
+subcmd_checkout() { # {{{
   local list response key branch header
-  list=$(git branch --all --color -vv; git tag) || return 1
-    mapfile -t response < <(fzf --prompt='checkout' \
-    --header="$header" --expect=ctrl-x <<< "$list")
-  key="${response[0]}"
-  branch=$(perl -pe 's/^\*?\s*(remotes\/[^\/]*\/)?([^ ]+).*/\2/' <<< "${response[1]}")
-  git checkout "$branch" || return 1
-}
-# }}}
+  if (( $# > 0 )); then git checkout "$@"; return; fi
+  {
+    git branch --all --color -vv
+    git tag
+  } |
+    fzf --prompt='checkout' \
+    --header="$header" \
+    --bind=enter:execute:"git checkout \$(perl -pe 's/^\*?\s*(remotes\/[^\/]*\/)?([^ ]+).*/\2/' <<< {})"
 
-git_add() { # {{{
-  local out response query key header
-  header='use ctrl-p to add in patch mode'
-  while out=$(git ls-files -mo --exclude-standard |
-    fzf --prompt='add' --tac --multi \
-        --header="$header" --query="$query" --print-query \
-        --preview='git diff --color=always {} 2>&1' \
-        --preview-window=up \
-        --bind=ctrl-p:accept --expect=ctrl-p)
-  do
-    mapfile -t response <<< "$out"
-    query="${response[0]}" && unset response[0]
-    key="${response[1]}" && unset response[1]
-    [[ "${#response[@]}" == 0 ]] && continue
-    if [[ "$key" == 'ctrl-p' ]]; then
-      git add -p "${response[@]}" < /dev/tty
-    else
-      git add "${response[@]}"
-    fi
-  done
 }
-# }}}
 
-git_stash() { # {{{
-  local out response query key sha header
-  header='use ctrl-d to show a diff or ctrl-b to create a new branch'
-  while out=$(git stash list \
-      --pretty="%C(yellow)%h %>(14)%Cgreen%cr %C(blue)%gs" |
+subcmd_stash() {
+  if (( $# > 0 )); then git stash "$@"; return; fi
+  local header='use ctrl-d to show a diff or ctrl-b to create a new branch'
+  git stash list --pretty="%C(yellow)%h %>(14)%Cgreen%cr %C(blue)%gs" |
     fzf --prompt='stash' --no-sort --header="$header" \
-      --query="$query" --print-query \
-      --preview='git diff --color {1}' \
-      --expect=ctrl-d,ctrl-b)
-  do
-    mapfile -t response <<< "$out"
-    query="${response[0]}" && unset response[0]
-    key="${response[1]}" && unset response[1]
-    sha="${response[-1]}"
-    sha="${sha%% *}"
-    [[ -z "$sha" ]] && continue
-    case "$key" in
-      'ctrl-d') git diff "$sha" --color=always | less -R ;;
-      'ctrl-b') git stash branch "stash-$sha" "$sha" ;;
-      *) git stash show -p "$sha" --color=always | less -R  ;;
-    esac
-  done
-}
-# }}}
-
-pick_cmd() {
-  for c in "${!implemented_git_cmds[@]}"; do
-    printf '%s%-15s%s -- %s\n' "${c_green}" "$c" "${c_reset}" "${git_cmds_descriptions[$c]}"
-  done | fzf | awk '{print $1}'
+    --bind='ctrl-d:execute: git diff {1} --color=always | less -R' \
+    --bind='ctrl-b:execute(git stash branch "stash-{1}" {1})+abort' \
+    --preview='git diff --color {1}'
 }
 
-main() {
-  local pick
-  while pick=$(pick_cmd); do
-    if [[ -n $pick ]] && has "${implemented_git_cmds[${pick%% *}]}"; then
-      ${implemented_git_cmds[$pick]}
-    else
-      break
-    fi
-  done
+has -v fzf perl git || die
+
+mapfile -t subcmds_avail < <(compgen -A function | awk '/^subcmd_/ { sub(/^subcmd_/, "", $0); print }')
+
+nocmd() {
+  local cmd=$(for c in "${subcmds_avail[@]}"; do
+    printf "$c\t${help}\t${git_cmds_descriptions[$c]}\n"
+  done)
+  local choice=$(<<< "$cmd" column -t -s $'\t' | fzf | awk '{print $1}')
+  if [[ -z $choice ]]; then exit 1; fi
+  subcmd_$choice
 }
 
-reset_screen() {
-  tput rmcup
-}
-
-finish() {
-  reset_screen
-}
-
-trap finish EXIT SIGINT SIGTERM
-main
+if (( $# < 1 )); then
+  nocmd
+  exit 1
+elif has "subcmd_$1"; then
+  subcmd="subcmd_$1"
+  shift
+  "$subcmd" "$@"
+elif [[ -v aliases[$1] ]]; then
+  subcmd=subcmd_${aliases[$1]}
+  shift
+  "$subcmd" "$@"
+else
+  exec git "$@"
+fi

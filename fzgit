@@ -243,7 +243,7 @@ subcmd_checkout() { # {{{
 
 }
 
-subcmd_stash() {
+subcmd_stash-ls() {
   if (( $# > 0 )); then git stash "$@"; return; fi
   local header='use ctrl-d to show a diff or ctrl-b to create a new branch'
   git stash list --pretty="%C(yellow)%h %>(14)%Cgreen%cr %C(blue)%gs" |

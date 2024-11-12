@@ -65,141 +65,7 @@ fzf() {
     "$@"
 }
 
-declare -A git_cmds_descriptions=( # {{{
-  ['add']='Add file contents to the index'
-  ['am']='Apply a series of patches from a mailbox'
-  ['annotate']='Annotate file lines with commit information'
-  ['apply']='Apply a patch to files and/or to the index'
-  ['archive']='Create an archive of files from a named tree'
-  ['bisect']='Find by binary search the change that introduced a bug'
-  ['blame']='Show what revision and author last modified each line of a'
-  ['branch']='List, create, or delete branches'
-  ['bundle']='Move objects and refs by archive'
-  ['cat-file']='Provide content or type and size information for'
-  ['check-attr']='Display gitattributes information'
-  ['check-ignore']='Debug gitignore / exclude files'
-  ['check-mailmap']='Show canonical names and email addresses of'
-  ['check-ref-format']='Ensures that a reference name is well formed'
-  ['checkout']='Checkout a branch or paths to the working tree'
-  ['checkout-index']='Copy files from the index to the working tree'
-  ['cherry']='Find commits yet to be applied to upstream'
-  ['cherry-pick']='Apply the changes introduced by some existing commits'
-  ['citool']='Graphical alternative to git-commit'
-  ['clean']='Remove untracked files from the working tree'
-  ['clone']='Clone a repository into a new directory'
-  ['column']='Display data in columns'
-  ['commit']='Record changes to the repository'
-  ['commit-tree']='Create a new commit object'
-  ['config']='Get and set repository or global options'
-  ['count-objects']='Count unpacked number of objects and their disk'
-  ['credential']='Retrieve and store user credentials'
-  ['daemon']='A really simple server for Git repositories'
-  ['describe']='Show the most recent tag that is reachable from a commit'
-  ['diff']='Show changes between commits, commit and working tree, etc'
-  ['diff-files']='Compares files in the working tree and the index'
-  ['diff-index']='Compare a tree to the working tree or index'
-  ['diff-tree']='Compares the content and mode of blobs found via two'
-  ['difftool']='Show changes using common diff tools'
-  ['fast-export']='Git data exporter'
-  ['fast-import']='Backend for fast Git data importers'
-  ['fetch']='Download objects and refs from another repository'
-  ['fetch-pack']='Receive missing objects from another repository'
-  ['filter-branch']='Rewrite branches'
-  ['fmt-merge-msg']='Produce a merge commit message'
-  ['for-each-ref']='Output information on each ref'
-  ['format-patch']='Prepare patches for e-mail submission'
-  ['fsck']='Verifies the connectivity and validity of the objects in the'
-  ['fsck-objects']='Verifies the connectivity and validity of the'
-  ['gc']='Cleanup unnecessary files and optimize the local repository'
-  ['get-tar-commit-id']='Extract commit ID from an archive created using'
-  ['grep']='Print lines matching a pattern'
-  ['gui']='A portable graphical interface to Git'
-  ['hash-object']='Compute object ID and optionally creates a blob from'
-  ['help']='Display help information about Git'
-  ['http-backend']='Server side implementation of Git over HTTP'
-  ['http-fetch']='Download from a remote Git repository via HTTP'
-  ['http-push']='Push objects over HTTP/DAV to another repository'
-  ['imap-send']='Send a collection of patches from stdin to an IMAP'
-  ['index-pack']='Build pack index file for an existing packed archive'
-  ['init']='Create an empty Git repository or reinitialize an existing'
-  ['init-db']='Creates an empty Git repository'
-  ['instaweb']='Instantly browse your working repository in gitweb'
-  ['log']='Show commit logs'
-  ['ls-files']='Show information about files in the index and the'
-  ['ls-remote']='List references in a remote repository'
-  ['ls-tree']='List the contents of a tree object'
-  ['mailinfo']='Extracts patch and authorship from a single e-mail'
-  ['mailsplit']='Simple UNIX mbox splitter program'
-  ['merge']='Join two or more development histories together'
-  ['merge-base']='Find as good common ancestors as possible for a merge'
-  ['merge-file']='Run a three-way file merge'
-  ['merge-index']='Run a merge for files needing merging'
-  ['merge-one-file']='The standard helper program to use with'
-  ['merge-tree']='Show three-way merge without touching index'
-  ['mergetool']='Run merge conflict resolution tools to resolve merge'
-  ['mktag']='Creates a tag object'
-  ['mktree']='Build a tree-object from ls-tree formatted text'
-  ['mv']='Move or rename a file, a directory, or a symlink'
-  ['notes']='Add or inspect object notes'
-  ['pack-objects']='Create a packed archive of objects'
-  ['pack-redundant']='Find redundant pack files'
-  ['pack-refs']='Pack heads and tags for efficient repository access'
-  ['patch-id']='Compute unique ID for a patch'
-  ['prune']='Prune all unreachable objects from the object database'
-  ['prune-packed']='Remove extra objects that are already in pack files'
-  ['pull']='Fetch from and integrate with another repository or a local'
-  ['push']='Update remote refs along with associated objects'
-  ['quiltimport']='Applies a quilt patchset onto the current branch'
-  ['read-tree']='Reads tree information into the index'
-  ['rebase']='Forward-port local commits to the updated upstream head'
-  ['receive-pack']='Receive what is pushed into the repository'
-  ['reflog']='Manage reflog information'
-  ['relink']='Hardlink common objects in local repositories'
-  ['remote']='Manage set of tracked repositories'
-  ['remote-ext']='Bridge smart transport to external command.'
-  ['remote-fd']='Reflect smart transport stream back to caller'
-  ['repack']='Pack unpacked objects in a repository'
-  ['replace']='Create, list, delete refs to replace objects'
-  ['request-pull']='Generates a summary of pending changes'
-  ['rerere']='Reuse recorded resolution of conflicted merges'
-  ['reset']='Reset current HEAD to the specified state'
-  ['rev-list']='Lists commit objects in reverse chronological order'
-  ['rev-parse']='Pick out and massage parameters'
-  ['revert']='Revert some existing commits'
-  ['rm']='Remove files from the working tree and from the index'
-  ['send-pack']='Push objects over Git protocol to another repository'
-  ['sh-i18n--envsubst']="Git's own envsubst(1) for i18n fallbacks"
-  ['shell']='Restricted login shell for Git-only SSH access'
-  ['shortlog']="Summarize 'git log' output"
-  ['show']='Show various types of objects'
-  ['show-branch']='Show branches and their commits'
-  ['show-index']='Show packed archive index'
-  ['show-ref']='List references in a local repository'
-  ['stage']='Add file contents to the staging area'
-  ['stash']='Stash the changes in a dirty working directory away'
-  ['status']='Show the working tree status'
-  ['stripspace']='Remove unnecessary whitespace'
-  ['submodule']='Initialize, update or inspect submodules'
-  ['subtree']='Merge subtrees together and split repository into'
-  ['symbolic-ref']='Read, modify and delete symbolic refs'
-  ['tag']='Create, list, delete or verify a tag object signed with GPG'
-  ['unpack-file']="Creates a temporary file with a blob's contents"
-  ['unpack-objects']='Unpack objects from a packed archive'
-  ['update-index']='Register file contents in the working tree to the'
-  ['update-ref']='Update the object name stored in a ref safely'
-  ['update-server-info']='Update auxiliary info file to help dumb'
-  ['upload-archive']='Send archive back to git-archive'
-  ['upload-pack']='Send objects packed back to git-fetch-pack'
-  ['var']='Show a Git logical variable'
-  ['verify-commit']='Check the GPG signature of commits'
-  ['verify-pack']='Validate packed Git archive files'
-  ['verify-tag']='Check the GPG signature of tags'
-  ['web--browse']='Git helper script to launch a web browser'
-  ['whatchanged']='Show logs with difference each commit introduces'
-  ['write-tree']='Create a tree object from the current index'
-)
-
-
+helptext[diff]='Show changes between commits, commit and working tree, etc'
 subcmd_diff() {
   if (( $# > 0 )); then git diff "$@"; fi
   fzf \
@@ -210,6 +76,7 @@ subcmd_diff() {
     --preview-window=70%
 }
 
+helptext[add]='Add file contents to the index'
 subcmd_add() {
   if (( $# > 0 )); then git add "$@"; return; fi
   local diff
@@ -221,6 +88,7 @@ subcmd_add() {
   subcmd_add
 }
 
+helptext[status]='Show the working tree status'
 subcmd_status() {
   local preview='git diff --color=always {2..}'
   fzf \
@@ -230,6 +98,7 @@ subcmd_status() {
     --bind='enter:execute:git add -p {2..}'
 }
 
+helptext[checkout]='Checkout a branch or paths to the working tree'
 subcmd_checkout() { # {{{
   local list response key branch header
   if (( $# > 0 )); then git checkout "$@"; return; fi
@@ -243,6 +112,7 @@ subcmd_checkout() { # {{{
 
 }
 
+helptext[stash-ls]='List the stash entries that you currently have'
 subcmd_stash-ls() {
   if (( $# > 0 )); then git stash "$@"; return; fi
   local header='use ctrl-d to show a diff or ctrl-b to create a new branch'
@@ -258,13 +128,18 @@ has -v fzf perl git || die
 mapfile -t subcmds_avail < <(compgen -A function | awk '/^subcmd_/ { sub(/^subcmd_/, "", $0); print }')
 
 nocmd() {
-  local cmd=$(for c in "${subcmds_avail[@]}"; do
-    printf "$c\t${help}\t${git_cmds_descriptions[$c]}\n"
-  done)
-  local choice=$(<<< "$cmd" column -t -s $'\t' | fzf | awk '{print $1}')
-  if [[ -z $choice ]]; then exit 1; fi
-  subcmd_$choice
+  local cmd
+  cmd=$(for c in "${subcmds_avail[@]}"; do
+  printf "$c\t${help}\t${helptext[$c]}\n"
+done)
+  cmd=$(column -t -s $'\t' <<< "$cmd" | fzf | awk '{print $1}')
+  if [[ -n $cmd ]]; then
+    subcmd_$cmd
+  else
+    exit 1
+  fi
 }
+
 
 if (( $# < 1 )); then
   nocmd

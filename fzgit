@@ -55,7 +55,7 @@ fzf() {
     prompt="${1##*=}>"
     shift
   fi
-  branch=$(git status 2> /dev/null | sed 's/On branch />/;q')
+  branch=$(git rev-parse --abbrev-ref HEAD)
   opts=( --prompt="fzgit${branch}>${prompt} " )
   [[ -v FZGIT_OPTIONS ]] && opts=( $FZGIT_OPTIONS )
   command fzf "${opts[@]}" \

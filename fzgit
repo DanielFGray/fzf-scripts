@@ -67,7 +67,7 @@ fzf() {
 
 helptext[diff]='Show changes between commits, commit and working tree, etc'
 subcmd_diff() {
-  if (( $# > 0 )); then git diff "$@"; fi
+  if (( $# > 0 )); then git diff "$@"; return; fi
   fzf \
     --bind='start:reload:git -c color.status=always status -su' \
     --nth=2.. \

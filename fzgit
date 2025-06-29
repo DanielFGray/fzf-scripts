@@ -19,6 +19,8 @@ die() {
   exit 1
 }
 
+export COLUMNS
+
 has() {
   local v c
   if [[ $1 = '-v' ]]; then
@@ -32,6 +34,25 @@ has() {
       return 1
     fi
   done
+}
+
+select_from() {
+  local cmd='command -v'
+  for a in "$@"; do
+    case "$a" in
+    -c)
+      cmd="$2"
+      shift 2
+      ;;
+    esac
+  done
+  for c in "$@"; do
+    if $cmd "${c%% *}" &>/dev/null; then
+      echo "$c"
+      return 0
+    fi
+  done
+  return 1
 }
 
 aliases[-h]=help
@@ -50,33 +71,44 @@ ${formattedhelptext}
 HELP
 }
 
+basedir=$(basename $(git rev-parse --show-toplevel))
+
+# TODO: customization?
+branch_prefix='  '
+separator=' ❯ '
+
+diffprg=$(select_from 'delta -w ${FZF_PREVIEW_COLUMNS:-COLUMNS}' bat diff-so-fancy diff-highlight colordiff 'diff -u')
+
 fzf() {
   local prompt
   if [[ $1 == --prompt=* ]]; then
-    prompt="${1##*=}>"
+    prompt="${1##*=}${separator}"
     shift
   fi
-  branch=$(git rev-parse --abbrev-ref HEAD)
-  opts=(--prompt="fzgit${branch}>${prompt} ")
+  branch=$(__current_branch)
+  opts=(--prompt="${basedir}${branch_prefix}${branch}${separator}${prompt}")
   [[ -v FZGIT_OPTIONS ]] && opts=($FZGIT_OPTIONS)
   command fzf "${opts[@]}" \
     --inline-info \
     --ansi \
-    --no-clear \
     "$@"
+}
+
+__current_branch() {
+  git name-rev --name-only HEAD
 }
 
 helptext[diff]='Show changes between commits, commit and working tree, etc'
 subcmd_diff() {
-  if (($# > 0)); then
-    git diff "$@"
-    return
-  fi
-  fzf \
+  # if (($# > 0)); then
+  #   git diff "$@"
+  #   return
+  # fi
+  fzf --prompt='diff' \
     --bind='start:reload:git -c color.status=always status -su' \
     --nth=2.. \
-    --preview='git diff --color=always {2..} | delta -w $FZF_PREVIEW_COLUMNS' \
-    --bind='enter:execute:git diff --color=always {2..}' \
+    --preview="git diff --color=always -- {2..} | $diffprg" \
+    --bind="enter:execute:git diff --color=always -- {2..} | $diffprg | less -R" \
     --preview-window=70%
 }
 
@@ -112,6 +144,7 @@ subcmd_add() {
       --prompt='add' \
       --disabled \
       --read0 \
+      --header='enter:stage | s:split patch' \
       --expect=s \
       --preview='git diff --staged | git apply --stat; git diff --staged | bat --color=always --plain')
   [[ -z $diff ]] && return
@@ -142,25 +175,26 @@ split_patch() {
       --bind="enter:execute(printf -v diff '%s' '${patches[0]}' {+}; git apply --cached <<< \$diff)+abort" \
       --preview="printf -v diff '%s' '${patches[0]}' {+}; git apply --stat <<< \$diff; bat --color=always --plain <<< \"\$diff\""
 }
-helptext=log='Show commit history'
+
+helptext[log]='Show commit history'
 subcmd_log() {
   git log --color=always --pretty=format:$'%h\t%C(dim yellow)%ar%C(reset)\t%s' "$@" |
     fzf --prompt='log' \
       --multi \
       --track \
       --header='enter:show  ctrl-d:diff  ctrl-p:print' \
-      --bind='enter:execute:git show {1}' \
+      --bind='enter:execute:git show {1} | delta -w $COLUMNS | less -R' \
       --bind='ctrl-d:execute:fzgit diff {1}' \
       --bind='ctrl-p:accept' \
       --preview-window=60% \
-      --preview='git show {1} | delta -w $FZF_PREVIEW_COLUMNS' |
+      --preview="git show {1} | $diffprg" |
     awk '{print $1}'
 }
 
 helptext[status]='Show the working tree status'
 subcmd_status() {
   local preview='git diff --color=always {2..}'
-  fzf \
+  fzf --prompt='status' \
     --nth=2.. \
     --bind='start:reload:git -c color.status=always status -s' \
     --preview="$preview" \
@@ -169,11 +203,12 @@ subcmd_status() {
 
 helptext[checkout]='Checkout a branch or paths to the working tree'
 subcmd_checkout() { # {{{
-  local list response key branch header
+  local branch header
   if (($# > 0)); then
     git checkout "$@"
     return
   fi
+  branch=$(__current_branch)
   {
     git branch --all --color -vv
     git tag
@@ -181,10 +216,9 @@ subcmd_checkout() { # {{{
     fzf --prompt='checkout' \
       --header="$header" \
       --bind=enter:execute:"git checkout \$(perl -pe 's/^\*?\s*(remotes\/[^\/]*\/)?([^ ]+).*/\2/' <<< {})"
-
 }
 
-helptext[stash - ls]='List the stash entries that you currently have'
+helptext['stash-ls']='List the stash entries that you currently have'
 subcmd_stash-ls() {
   if (($# > 0)); then
     git stash "$@"
@@ -192,7 +226,9 @@ subcmd_stash-ls() {
   fi
   local header='use ctrl-d to show a diff or ctrl-b to create a new branch'
   git stash list --pretty="%C(yellow)%h %>(14)%Cgreen%cr %C(blue)%gs" |
-    fzf --prompt='stash' --no-sort --header="$header" \
+    fzf --prompt='stash' \
+      --no-sort \
+      --header="$header" \
       --bind='ctrl-d:execute: git diff {1} --color=always | less -R' \
       --bind='ctrl-b:execute(git stash branch "stash-{1}" {1})+abort' \
       --preview='git diff --color {1}'
@@ -205,7 +241,7 @@ mapfile -t subcmds_avail < <(compgen -A function | awk '/^subcmd_/ { sub(/^subcm
 nocmd() {
   local cmd
   cmd=$(for c in "${subcmds_avail[@]}"; do
-    printf "$c\t${help}\t${helptext[$c]}\n"
+    printf "%s\t%s\n" "$c" "${helptext[$c]}"
   done)
   cmd=$(column -t -s $'\t' <<<"$cmd" | fzf | awk '{print $1}')
   if [[ -n $cmd ]]; then

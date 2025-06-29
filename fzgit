@@ -142,6 +142,21 @@ split_patch() {
       --bind="enter:execute(printf -v diff '%s' '${patches[0]}' {+}; git apply --cached <<< \$diff)+abort" \
       --preview="printf -v diff '%s' '${patches[0]}' {+}; git apply --stat <<< \$diff; bat --color=always --plain <<< \"\$diff\""
 }
+helptext=log='Show commit history'
+subcmd_log() {
+  git log --color=always --pretty=format:$'%h\t%C(dim yellow)%ar%C(reset)\t%s' "$@" |
+    fzf --prompt='log' \
+      --multi \
+      --track \
+      --header='enter:show  ctrl-d:diff  ctrl-p:print' \
+      --bind='enter:execute:git show {1}' \
+      --bind='ctrl-d:execute:fzgit diff {1}' \
+      --bind='ctrl-p:accept' \
+      --preview-window=60% \
+      --preview='git show {1} | delta -w $FZF_PREVIEW_COLUMNS' |
+    awk '{print $1}'
+}
+
 helptext[status]='Show the working tree status'
 subcmd_status() {
   local preview='git diff --color=always {2..}'

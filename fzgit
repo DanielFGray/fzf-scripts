@@ -78,16 +78,47 @@ subcmd_diff() {
 
 helptext[add]='Add file contents to the index'
 subcmd_add() {
-  if (( $# > 0 )); then git add "$@"; return; fi
+  if (($# > 0)); then
+    git add "$@"
+    return
+  fi
+  # TODO: split and make patches smaller
   local diff
-  diff=$(git diff --color=always | perl -pwe 's/^(\e\[[0-9;]*m)*(?=diff)/\0/m' | fzf --read0)
+  diff=$(git diff --color=always | perl -pwe 's/^(\e\[[0-9;]*m)*(?=diff)/\0/m' |
+    fzf \
+      --prompt='add' \
+      --disabled \
+      --read0 \
+      --expect=s \
+      --preview='git diff --staged | git apply --stat; git diff --staged | bat --color=always --plain')
   [[ -z $diff ]] && return
-  git apply --check --cached <<< "$diff" &&
-    git apply --cached <<< "$diff" &&
-    git apply --stat <<< "$diff"
+  if [[ $diff = s* ]]; then
+    split_patch <<<"${diff:2}"
+  else
+    # elif [[ $diff = a* ]]; then
+    patch="${diff:2}"
+    git apply --check --cached <<<"$patch" &&
+      git apply --cached <<<"$patch"
+  fi
   subcmd_add
 }
 
+split_patch() {
+  local incomingpatch patches patch
+  read -r -d $'\0' incomingpatch
+  mapfile -d $'\0' -t patches < <(
+    perl -pwe 's/^(\e\[[0-9;]*m)*(?=@@)/\0/m' <<<"$incomingpatch"
+  )
+  bat --color=always --plain <<<"$incomingpatch" |
+    perl -pwe 's/(\e\[[0-9;]*m)*(?=@@)/\0/m' |
+    fzf \
+      --header-lines=1 \
+      --disabled \
+      --multi \
+      --read0 \
+      --bind="enter:execute(printf -v diff '%s' '${patches[0]}' {+}; git apply --cached <<< \$diff)+abort" \
+      --preview="printf -v diff '%s' '${patches[0]}' {+}; git apply --stat <<< \$diff; bat --color=always --plain <<< \"\$diff\""
+}
 helptext[status]='Show the working tree status'
 subcmd_status() {
   local preview='git diff --color=always {2..}'

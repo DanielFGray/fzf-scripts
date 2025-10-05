@@ -133,8 +133,21 @@ has -v fzf gawk || die
 request="$*"
 
 if [[ -r /etc/os-release ]]; then
-  distro=$(awk -F'=' '"NAME" == $1 { gsub("\"", "", $2); print tolower($2); }' /etc/os-release)
+  # Attempt to get ID_LIKE from os-release to capture the "flavor" of the distro
+  # If ID_LIKE is not available, defer to ID
+  # If ID is not available, defer to NAME
+  distro=$(awk -F= '
+    $1=="ID_LIKE" { gsub(/"/,"",$2); idlike=$2 }
+    $1=="ID"      { gsub(/"/,"",$2); id=$2 }
+    $1=="NAME"    { gsub(/"/,"",$2); name=$2 }
+    END {
+      if (idlike)      print tolower(idlike)
+      else if (id)     print tolower(id)
+      else if (name)   print tolower(name)
+    }
+  ' /etc/os-release)
   distro="${distro%% *}"
+  echo $distro
 fi
 
 case "$distro" in

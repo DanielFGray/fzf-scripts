@@ -147,7 +147,6 @@ if [[ -r /etc/os-release ]]; then
     }
   ' /etc/os-release)
   distro="${distro%% *}"
-  echo $distro
 fi
 
 case "$distro" in

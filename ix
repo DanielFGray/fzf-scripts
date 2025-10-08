@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 
+# Dependencies: curl vipe xclip
+
 declare -r esc=$'\033'
 declare -r c_reset="${esc}[0m"
 declare -r c_red="${esc}[31m"
 declare OPTIND
-declare -a opts=( -\# )
+declare -a opts=(-\#)
 declare id
 
 usage() {
-  LESS=-FEXR less <<'HELP'
+  LESS=-FEXR less << 'HELP'
 ix [OPTIONS]
 
 -l             list all pastes, uses fzf for interactive use
@@ -33,9 +35,10 @@ has() {
     verbose=1
     shift
   fi
-  for c; do c="${c%% *}"
+  for c; do
+    c="${c%% *}"
     if ! command -v "$c" &> /dev/null; then
-      (( verbose > 0 )) && err "$c not found"
+      ((verbose > 0)) && err "$c not found"
       return 1
     fi
   done
@@ -45,7 +48,10 @@ select_from() {
   local cmd='command -v'
   for a; do
     case "$a" in
-      -c) cmd="$2"; shift 2 ;;
+      -c)
+        cmd="$2"
+        shift 2
+        ;;
     esac
   done
   for c; do
@@ -67,7 +73,7 @@ create_account() {
   read -rs -p 'enter a password (this will be hashed with sha256sum): ' password
   echo ''
   password=$(sha256sum <<< "$password")
-  password="${password/%  -}"
+  password="${password/%  -/}"
   printf "machine ix.io login %s password %s" "$username" "$password" >> ~/.netrc
   chmod 600 ~/.netrc
   if has_account; then
@@ -82,13 +88,13 @@ get_user_name() {
 }
 
 get_pastes() {
-  curl -s "http://ix.io/user/$1" |
-    grep -A1 -P '\<a href="\/[a-zA-Z0-9]+"\>' |
-    awk -F'--' '
+  curl -s "http://ix.io/user/$1" \
+    | grep -A1 -P '\<a href="\/[a-zA-Z0-9]+"\>' \
+    | awk -F'--' '
       BEGIN {FS="<a href=\""}
       /a href/{ sub(/\">\[r\]<\/a>/, "\t", $2); printf "http://ix.io" $2 }
       /@/{sub(/^\s+/, "", $0); print}
-    '
+      '
 }
 
 list_pastes() {
@@ -116,16 +122,18 @@ list_pastes() {
   fi
 }
 
-has -v curl || die
+has -v curl fzf vipe xclip || die
 
 has_account || create_account
 
-[[ -e ~/.netrc ]] && opts+=( '-n' )
+[[ -e ~/.netrc ]] && opts+=('-n')
 
 while getopts ":hld:i:n:" x; do
   case "$x" in
-    h) usage; exit ;;
-    d) curl -s "${opts[@]}" -X DELETE "$OPTARG"; exit ;;
+    d)
+      curl -s "${opts[@]}" -X DELETE "$OPTARG"
+      exit
+      ;;
     l)
       if [[ -e ~/.netrc ]]; then
         url=$(list_pastes)
@@ -133,19 +141,27 @@ while getopts ":hld:i:n:" x; do
       else
         die 'no netrc found'
       fi
-      exit ;;
-    i) opts+=( -X PUT ); id="$OPTARG" ;;
-    n) opts+=( -F "read:1=$OPTARG" ) ;;
+      exit
+      ;;
+    i)
+      opts+=(-X PUT)
+      id="$OPTARG"
+      ;;
+    n) opts+=(-F "read:1=$OPTARG") ;;
+    h | *)
+      usage
+      exit
+      ;;
   esac
 done
-shift $(( OPTIND - 1 ))
+shift $((OPTIND - 1))
 
 if [[ -t 0 ]]; then
   if [[ -n "$1" ]]; then
     filename="$1"
     shift
     response=$(curl "${opts[@]}" -F f:1=@"$filename" "$@" "ix.io/$id")
-    clipboard=$(select_from 'xclip -r ' 'xsel')
+    clipboard=$(select_from 'xclip -in -selection clipboard' 'xsel')
     if [[ -n "$clipboard" ]]; then
       tee /dev/tty <<< "$response" | $clipboard
     else

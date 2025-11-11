@@ -77,7 +77,7 @@ basedir=$(basename $(git rev-parse --show-toplevel))
 branch_prefix='  '
 separator=' ❯ '
 
-diffprg=$(select_from 'delta -w ${FZF_PREVIEW_COLUMNS:-COLUMNS}' bat diff-so-fancy diff-highlight colordiff 'diff -u')
+diffprg=$(select_from 'delta -w ${FZF_PREVIEW_COLUMNS:-COLUMNS}' 'bat --color=always -p' diff-so-fancy diff-highlight colordiff cat)
 
 fzf() {
   local prompt
@@ -87,8 +87,7 @@ fzf() {
   fi
   branch=$(__current_branch)
   opts=(--prompt="${basedir}${branch_prefix}${branch}${separator}${prompt}")
-  [[ -v FZGIT_OPTIONS ]] && opts=($FZGIT_OPTIONS)
-  command fzf "${opts[@]}" \
+  command fzf $FZGIT_FZF_OPTS \
     --inline-info \
     --ansi \
     "$@"

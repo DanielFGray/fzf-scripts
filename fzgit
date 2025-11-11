@@ -100,16 +100,26 @@ __current_branch() {
 
 helptext[diff]='Show changes between commits, commit and working tree, etc'
 subcmd_diff() {
-  # if (($# > 0)); then
-  #   git diff "$@"
-  #   return
-  # fi
-  fzf --prompt='diff' \
-    --bind='start:reload:git -c color.status=always status -su' \
+  local listcmd="diff_histogram $*"
+  local diffcmd="git diff $*"
+  local statcmd="git diff --shortstat $*"
+
+  while :; do
+    watcher
+    curl -s --unix-socket /tmp/fzgit.sock http -d "reload($listcmd)+change-header($($statcmd))"
+  done &
+  listener_pid=$!
+
+  SHELL=bash fzf --prompt='diff $*' \
+    -d│ \
+    --listen=/tmp/fzgit.sock \
+    --header="$($statcmd)" \
+    --bind="start:reload:$listcmd" \
     --nth=2.. \
-    --preview="git diff --color=always -- {2..} | $diffprg" \
-    --bind="enter:execute:git diff --color=always -- {2..} | $diffprg | less -R" \
-    --preview-window=70%
+    --preview="$diffcmd -- {1} | $diffprg" \
+    --bind='ctrl-p:toggle-preview' \
+    --bind="enter:execute:$diffcmd -- {1} | $diffprg | less -R" \
+    --preview-window=70%,down
 }
 
 helptext[rebase]='Reapply commits on top of another base tip'
@@ -138,15 +148,24 @@ subcmd_add() {
     return
   fi
   # TODO: split and make patches smaller
+  local listcmd="git diff --color=always | perl -pwe 's/^(\e\[[0-9;]*m)*(?=diff)/\0/m'"
+
+  while :; do
+    watcher
+    curl -s --unix-socket /tmp/fzgit.sock http -d "reload($listcmd)"
+  done &
+  listener_pid=$!
+
   local diff
-  diff=$(git diff --color=always | perl -pwe 's/^(\e\[[0-9;]*m)*(?=diff)/\0/m' |
-    fzf \
-      --prompt='add' \
-      --disabled \
-      --read0 \
-      --header='enter:stage | s:split patch' \
-      --expect=s \
-      --preview='git diff --staged | git apply --stat; git diff --staged | bat --color=always --plain')
+  diff=$(SHELL=bash fzf \
+    --prompt='add' \
+    --disabled \
+    --read0 \
+    --listen=/tmp/fzgit.sock \
+    --bind="start:reload:$listcmd" \
+    --header='enter:stage | s:split patch' \
+    --expect=s \
+    --preview='git diff --staged | git apply --stat; git diff --staged --color=always')
   [[ -z $diff ]] && return
   if [[ $diff = s* ]]; then
     split_patch <<<"${diff:2}"
@@ -183,10 +202,10 @@ subcmd_log() {
       --multi \
       --track \
       --header='enter:show  ctrl-d:diff  ctrl-p:print' \
-      --bind='enter:execute:git show {1} | delta -w $COLUMNS | less -R' \
+      --bind="enter:execute:git show {1} | $diffprg | less -R" \
       --bind='ctrl-d:execute:fzgit diff {1}' \
       --bind='ctrl-p:accept' \
-      --preview-window=60% \
+      --preview-window=80%,bottom \
       --preview="git show {1} | $diffprg" |
     awk '{print $1}'
 }
@@ -233,6 +252,74 @@ subcmd_stash-ls() {
       --bind='ctrl-b:execute(git stash branch "stash-{1}" {1})+abort' \
       --preview='git diff --color {1}'
 }
+
+watcher() {
+  inotifywait -q -e modify,attrib,close_write,move,create,delete $(git rev-parse --show-toplevel)/.git/index $(git ls-files) &>/dev/null
+}
+export -f watcher
+
+diff_histogram() {
+  git diff --numstat "$@" | perl -e '
+    use strict;
+    use warnings;
+    my $green = `tput setaf 2`;
+    my $red = `tput setaf 1`;
+    my $reset = `tput sgr0`;
+    chomp($green, $red, $reset);
+    my (@files, @adds, @dels, @totals);
+    my $max = 0;
+
+    while (<>) {
+      my ($added, $deleted, $file) = split /\t/, $_, 3;
+      chomp $file;
+
+      my $total = $added + $deleted;
+      $max = $total if $total > $max;
+
+      push @files, $file;
+      push @adds, $added;
+      push @dels, $deleted;
+      push @totals, $total;
+    }
+
+    my $maxlen = 0;
+    for (@files) {
+      $maxlen = length($_) if length($_) > $maxlen;
+    }
+
+    my $maxdigits = length($max);
+    for my $i (0 .. $#files) {
+      printf " %-*s │ ", $maxlen, $files[$i];
+      printf "%*d ", $maxdigits, $totals[$i];
+
+      if ($max > 0) {
+        my $graphwidth = 50;
+        my $bars = int($totals[$i] * $graphwidth / $max);
+        $bars = 1 if $bars == 0 && $totals[$i] > 0;
+
+        my $plus = int($adds[$i] * $bars / $totals[$i]);
+        my $minus = $bars - $plus;
+
+        print $green;
+        print "+" x $plus;
+        print $red;
+        print "-" x $minus;
+        print $reset;
+      }
+      print "\n";
+    }
+  '
+}
+export -f diff_histogram
+
+cleanup() {
+  if [[ -n $listener_pid ]] && kill -0 "$listener_pid" 2>/dev/null; then
+    kill "$listener_pid" 2>/dev/null
+    wait "$listener_pid" 2>/dev/null
+    listener_pid=''
+  fi
+}
+trap cleanup EXIT INT TERM
 
 has -v fzf perl git || die
 

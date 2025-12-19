@@ -18,6 +18,12 @@ Interactive git wrapper. Very much still a work in progress, but it has some ver
 
 *depends on `git` and `perl`*
 
+## [fzaur](fzaur)
+
+Search and install packages from the Arch User Repository (AUR). Clones the package, opens the PKGBUILD for review, and runs `makepkg -si`.
+
+*depends on `curl`, `jq`, and `git`*
+
 ## [fzbuku](fzbuku)
 
 A small wrapper around [buku](https://github.com/jarun/Buku) to search bookmarks
@@ -47,6 +53,16 @@ ddgsearch \!w hello world
 
 *depends on `jq` and `ddgr`*
 
+## [fztop](fztop)
+
+Interactive process viewer using fzf. Allows searching and killing processes with `ctrl-x` (SIGTERM) or `F9` (SIGKILL).
+
+## [gitup](gitup)
+
+Search for git repositories and pull updates in parallel. Supports multiple directories and can run non-interactively with `-F`.
+
+*depends on `git`*
+
 ## [igr](igr)
 
 Interactive grep/rg wrapper
@@ -73,6 +89,10 @@ Lists and removes packages, optionally sorts by size.
 
 *depends on `pacman`*
 
+## [pkgup](pkgup)
+
+Interactively select and upgrade packages. Works with various AUR helpers (pacaur, trizen, packer, apacman) or falls back to pacman.
+
 ## [sshget](sshget)
 
 Lists files from remote servers and `rsync`s them to the current directory
@@ -85,17 +105,29 @@ List and connect to wifi networks
 
 # Install
 
-Currently there's no installation script, but if you clone the repo you can easily symlink the scripts here with something like:
+Clone the repo and use `make install`:
 
 ```sh
-cd /path/to/repo/fzf-scripts
-find -maxdepth 1 -executable -type f -exec ln -s -t $HOME/.local/bin $PWD/fzf-scripts/{} \;
+# Install to /usr/local/bin (requires sudo)
+sudo make install
+
+# Or install to ~/.local/bin
+make PREFIX=~/.local install
+
+# Install a single script
+make install-fzgit
+
+# Uninstall
+make uninstall
+make uninstall-fzgit
+# or with PREFIX
+make PREFIX=~/.local uninstall
 ```
 
 # Notable Mentions
 
-* [forgit](https://github.com/wfxr/forgit) - a better version of fzgit
-* [fzf-tab](https://github.com/Aloxaf/fzf-tab) - use fzf to tab-complete everything in your shell
+* [fzf-tab](https://github.com/Aloxaf/fzf-tab) - use fzf to tab-complete everything in zsh
+* [forgit](https://github.com/wfxr/forgit) - zsh alternative to/inspiration for fzgit
 
 # Legal
 

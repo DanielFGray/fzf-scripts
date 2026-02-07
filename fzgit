@@ -77,7 +77,7 @@ basedir=$(basename $(git rev-parse --show-toplevel))
 branch_prefix='  '
 separator=' ❯ '
 
-diffprg=$(select_from 'delta -w ${FZF_PREVIEW_COLUMNS:-COLUMNS}' 'bat --color=always -p' diff-so-fancy diff-highlight colordiff cat)
+diffprg=$(select_from 'delta -w ${FZF_PREVIEW_COLUMNS:-$COLUMNS}' 'bat --color=always -p' diff-so-fancy diff-highlight colordiff cat)
 
 fzf() {
   local prompt
@@ -253,7 +253,11 @@ subcmd_stash-ls() {
 }
 
 watcher() {
-  inotifywait -q -e modify,attrib,close_write,move,create,delete $(git rev-parse --show-toplevel)/.git/index $(git ls-files) &>/dev/null
+  local files=("$(git rev-parse --show-toplevel)/.git/index")
+  while IFS= read -r f; do
+    [[ -e "$f" ]] && files+=("$f")
+  done < <(git ls-files)
+  inotifywait -q -e modify,attrib,close_write,move,create,delete "${files[@]}" &>/dev/null
 }
 export -f watcher
 
@@ -271,6 +275,9 @@ diff_histogram() {
     while (<>) {
       my ($added, $deleted, $file) = split /\t/, $_, 3;
       chomp $file;
+
+      # Skip binary files (git numstat outputs - for binary)
+      next if $added eq "-" || $deleted eq "-";
 
       my $total = $added + $deleted;
       $max = $total if $total > $max;
